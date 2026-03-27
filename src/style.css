@@ -1,0 +1,85 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-parchment: #f4e4c1;
+  --color-parchment-dark: #d4c4a1;
+  --color-ink: #2a1a0a;
+  --color-ink-light: #5a4a3a;
+  --color-gold: #c9a84c;
+  --color-gold-bright: #e8c84c;
+  --color-blood: #8b2500;
+  --color-bg-dark: #1a1210;
+  --color-bg-panel: #2a2018;
+  --color-bg-panel-light: #3a3028;
+  --color-border-ornate: #6a5a3a;
+  --font-heading: 'Cinzel', serif;
+  --font-body: 'Crimson Text', serif;
+}
+
+body {
+  background-color: var(--color-bg-dark);
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(201, 168, 76, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 50%, rgba(139, 37, 0, 0.03) 0%, transparent 50%);
+}
+
+.panel-ornate {
+  background: linear-gradient(170deg, var(--color-bg-panel) 0%, var(--color-bg-dark) 100%);
+  border: 1px solid var(--color-border-ornate);
+  box-shadow:
+    inset 0 1px 0 rgba(201, 168, 76, 0.1),
+    0 4px 24px rgba(0, 0, 0, 0.5);
+}
+
+.panel-parchment {
+  background: linear-gradient(170deg, var(--color-parchment) 0%, var(--color-parchment-dark) 100%);
+  color: var(--color-ink);
+  border: 1px solid var(--color-border-ornate);
+  box-shadow:
+    inset 0 0 30px rgba(42, 26, 10, 0.1),
+    0 4px 24px rgba(0, 0, 0, 0.5);
+}
+
+.gold-rule {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-gold), transparent);
+}
+
+.btn-arcane {
+  font-family: var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: linear-gradient(180deg, var(--color-gold) 0%, #8a6a2c 100%);
+  color: var(--color-ink);
+  border: 1px solid var(--color-gold-bright);
+  box-shadow: 0 0 12px rgba(201, 168, 76, 0.2);
+  transition: all 0.2s;
+}
+.btn-arcane:hover {
+  background: linear-gradient(180deg, var(--color-gold-bright) 0%, var(--color-gold) 100%);
+  box-shadow: 0 0 20px rgba(201, 168, 76, 0.4);
+}
+.btn-arcane:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-blood {
+  font-family: var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: linear-gradient(180deg, var(--color-blood) 0%, #5a1800 100%);
+  color: var(--color-parchment);
+  border: 1px solid var(--color-blood);
+  box-shadow: 0 0 12px rgba(139, 37, 0, 0.3);
+  transition: all 0.2s;
+}
+.btn-blood:hover {
+  background: linear-gradient(180deg, #ab3500 0%, var(--color-blood) 100%);
+  box-shadow: 0 0 20px rgba(139, 37, 0, 0.5);
+}
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--color-bg-dark); }
+::-webkit-scrollbar-thumb { background: var(--color-border-ornate); border-radius: 4px; }
