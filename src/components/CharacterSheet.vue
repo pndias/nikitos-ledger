@@ -22,6 +22,12 @@ const borderStyles = ['solid', 'double', 'dashed']
 const borderType = computed(() => borderStyles[theme.value.borderStyle ?? 0])
 const ornamentDeg = computed(() => `${theme.value.ornamentRotation ?? 0}deg`)
 const isNpc = computed(() => store.data?.type === 'npc')
+
+// Sorted skills for display
+const skillList = computed(() => {
+  if (!store.data?.skills) return []
+  return Object.entries(store.data.skills).sort((a, b) => a[0].localeCompare(b[0]))
+})
 </script>
 
 <template>
@@ -66,37 +72,52 @@ const isNpc = computed(() => store.data?.type === 'npc')
       </div>
     </div>
 
-    <!-- Stats -->
+    <!-- Combat stats -->
     <div class="flex flex-wrap gap-2 mb-4 text-xs font-heading tracking-wider">
       <span class="bg-blood/10 border border-blood/30 text-blood px-3 py-1 rounded">HP {{ store.data.hp }}</span>
       <span class="bg-ink/5 border border-border-ornate/40 text-ink px-3 py-1 rounded">AC {{ store.data.ac }}</span>
       <span class="bg-ink/5 border border-border-ornate/40 text-ink px-3 py-1 rounded">{{ store.data.speed }}ft</span>
-      <span class="px-3 py-1 rounded" :style="{ background: `${accent}15`, border: `1px solid ${accent}40`, color: accent }">Prof {{ store.data.proficiencyBonus }}</span>
+      <span class="bg-ink/5 border border-border-ornate/40 text-ink px-3 py-1 rounded">Init {{ store.data.initiative?.display }}</span>
+      <span class="bg-ink/5 border border-border-ornate/40 text-ink px-3 py-1 rounded">PP {{ store.data.passivePerception }}</span>
+      <span class="px-3 py-1 rounded" :style="{ background: `${accent}15`, border: `1px solid ${accent}40`, color: accent }">
+        Prof {{ store.data.proficiencyBonusDisplay }}
+      </span>
+      <span class="bg-ink/5 border border-border-ornate/40 text-ink px-3 py-1 rounded">HD {{ store.data.hitDie }}</span>
     </div>
 
-    <!-- NPC Roleplaying (DM section) -->
-    <div v-if="isNpc && store.data.roleplaying" class="mb-4 p-3 rounded border border-dashed" :style="{ borderColor: `${accent}50`, background: `${accent}06` }">
-      <h3 class="font-heading text-xs uppercase tracking-wider mb-2" :style="{ color: accent }">🎭 Interpretação (DM)</h3>
-      <div class="grid grid-cols-2 gap-2 text-xs font-body text-ink">
-        <p v-if="store.data.roleplaying.voice"><span class="font-bold">Voz:</span> {{ store.data.roleplaying.voice }}</p>
-        <p v-if="store.data.roleplaying.mannerisms"><span class="font-bold">Maneirismos:</span> {{ store.data.roleplaying.mannerisms }}</p>
-        <p v-if="store.data.roleplaying.ideals"><span class="font-bold">Ideais:</span> {{ store.data.roleplaying.ideals }}</p>
-        <p v-if="store.data.roleplaying.bonds"><span class="font-bold">Vínculos:</span> {{ store.data.roleplaying.bonds }}</p>
-        <p v-if="store.data.roleplaying.flaws" class="col-span-2"><span class="font-bold">Fraquezas:</span> {{ store.data.roleplaying.flaws }}</p>
+    <!-- Spellcasting -->
+    <div v-if="store.data.spellcasting" class="flex gap-2 mb-4 text-xs font-heading tracking-wider">
+      <span class="px-3 py-1 rounded" :style="{ background: `${accent}12`, border: `1px solid ${accent}30`, color: accent }">
+        Spell DC {{ store.data.spellcasting.saveDC }}
+      </span>
+      <span class="px-3 py-1 rounded" :style="{ background: `${accent}12`, border: `1px solid ${accent}30`, color: accent }">
+        Spell Atk {{ store.data.spellcasting.attackBonusDisplay }}
+      </span>
+      <span class="text-ink-light px-2 py-1">({{ store.data.spellcasting.ability.toUpperCase() }})</span>
+    </div>
+
+    <!-- Saving Throws -->
+    <div v-if="store.data.savingThrows" class="mb-4">
+      <h3 class="font-heading text-xs uppercase tracking-wider text-ink-light mb-1">Saving Throws</h3>
+      <div class="flex flex-wrap gap-1">
+        <span
+          v-for="(sv, key) in store.data.savingThrows" :key="key"
+          :class="['text-[11px] px-2 py-0.5 rounded font-body', sv.proficient ? 'font-bold' : '']"
+          :style="sv.proficient ? { background: `${accent}15`, border: `1px solid ${accent}30`, color: accent } : { background: 'rgba(42,26,10,0.05)', border: '1px solid rgba(106,90,58,0.3)', color: '#2a1a0a' }"
+        >{{ key.toUpperCase() }} {{ sv.display }}{{ sv.proficient ? ' ●' : '' }}</span>
       </div>
     </div>
 
-    <!-- DM Notes -->
-    <div v-if="isNpc && store.data.dmNotes" class="mb-4 p-3 bg-blood/5 border border-blood/20 rounded">
-      <h3 class="font-heading text-xs uppercase tracking-wider text-blood mb-1">🔒 Notas do Mestre</h3>
-      <p class="font-body text-xs text-ink italic leading-relaxed">{{ store.data.dmNotes }}</p>
-    </div>
-
     <!-- Skills -->
-    <div v-if="store.data.skills.length" class="mb-4">
+    <div v-if="skillList.length" class="mb-4">
       <h3 class="font-heading text-xs uppercase tracking-wider text-ink-light mb-1">Perícias</h3>
-      <div class="flex flex-wrap gap-1">
-        <span v-for="s in store.data.skills" :key="s" class="text-[11px] bg-ink/5 border border-border-ornate/30 px-2 py-0.5 rounded font-body text-ink">{{ s }}</span>
+      <div class="grid grid-cols-2 gap-x-4 gap-y-0.5">
+        <span
+          v-for="[name, sk] in skillList" :key="name"
+          :class="['text-[11px] font-body', sk.proficient ? 'font-bold text-ink' : 'text-ink-light']"
+        >
+          <span v-if="sk.proficient" :style="{ color: accent }">● </span>{{ sk.display }} {{ name }}
+        </span>
       </div>
     </div>
 
@@ -125,6 +146,24 @@ const isNpc = computed(() => store.data?.type === 'npc')
           {{ sp.name }} <span class="text-ink-light">({{ sp.level === 0 ? 'cantrip' : `lv${sp.level}` }})</span>
         </span>
       </div>
+    </div>
+
+    <!-- NPC Roleplaying -->
+    <div v-if="isNpc && store.data.roleplaying" class="mb-4 p-3 rounded border border-dashed" :style="{ borderColor: `${accent}50`, background: `${accent}06` }">
+      <h3 class="font-heading text-xs uppercase tracking-wider mb-2" :style="{ color: accent }">🎭 Interpretação (DM)</h3>
+      <div class="grid grid-cols-2 gap-2 text-xs font-body text-ink">
+        <p v-if="store.data.roleplaying.voice"><span class="font-bold">Voz:</span> {{ store.data.roleplaying.voice }}</p>
+        <p v-if="store.data.roleplaying.mannerisms"><span class="font-bold">Maneirismos:</span> {{ store.data.roleplaying.mannerisms }}</p>
+        <p v-if="store.data.roleplaying.ideals"><span class="font-bold">Ideais:</span> {{ store.data.roleplaying.ideals }}</p>
+        <p v-if="store.data.roleplaying.bonds"><span class="font-bold">Vínculos:</span> {{ store.data.roleplaying.bonds }}</p>
+        <p v-if="store.data.roleplaying.flaws" class="col-span-2"><span class="font-bold">Fraquezas:</span> {{ store.data.roleplaying.flaws }}</p>
+      </div>
+    </div>
+
+    <!-- DM Notes -->
+    <div v-if="isNpc && store.data.dmNotes" class="mb-4 p-3 bg-blood/5 border border-blood/20 rounded">
+      <h3 class="font-heading text-xs uppercase tracking-wider text-blood mb-1">🔒 Notas do Mestre</h3>
+      <p class="font-body text-xs text-ink italic leading-relaxed">{{ store.data.dmNotes }}</p>
     </div>
 
     <!-- Backstory -->
