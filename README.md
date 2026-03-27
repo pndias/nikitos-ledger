@@ -14,6 +14,7 @@ A minimalist web tool that lets players and DMs generate complete character shee
 - **Image Support** — Attach character art in the prompt; it becomes the portrait on the sheet and PDF
 - **Unique Visual Identity** — Each character gets a personalized color scheme, symbol, and ornamental details
 - **PDF Export** — Generate styled PDFs with embedded portraits using the official D&D template
+- **Markdown Export** — Export Obsidian-compatible `.md` files with YAML frontmatter for Dataview queries
 - **Inline Editing** — Click to edit character name, race, level, background, and alignment directly on the sheet
 - **Dual Mode** — Sidebar with separate PC and NPC categories for organized campaign management
 
@@ -59,7 +60,8 @@ src/
 ├── services/
 │   ├── LlmService.js           # Gemini Flash 2.5 API (PC + NPC prompts)
 │   ├── CharacterParser.js      # Normalize LLM JSON → internal format
-│   └── MarkdownParser.js       # Parse structured MD → character data
+│   ├── MarkdownParser.js       # Parse structured MD → character data
+│   └── MarkdownExporter.js     # Export to Obsidian-compatible MD + YAML
 └── stores/
     └── character.js            # Pinia: multi-character state (PCs + NPCs)
 ```

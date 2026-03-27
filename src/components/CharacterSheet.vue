@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useCharacterStore } from '../stores/character'
 import { usePdf } from '../composables/usePdf'
+import { downloadMarkdown } from '../services/MarkdownExporter'
 
 const store = useCharacterStore()
 
@@ -110,6 +111,19 @@ const skillList = computed(() => {
       <span class="text-ink-light px-2 py-1">({{ store.data.spellcasting.ability.toUpperCase() }})</span>
     </div>
 
+    <!-- Weapons -->
+    <div v-if="store.data.weapons?.length" class="mb-4">
+      <h3 class="font-heading text-xs uppercase tracking-wider text-ink-light mb-1">Armas</h3>
+      <div class="space-y-1">
+        <div v-for="w in store.data.weapons" :key="w.name" class="flex items-center gap-2 text-[11px] font-body">
+          <span class="font-bold text-ink">{{ w.name }}</span>
+          <span class="px-1.5 py-0.5 rounded" :style="{ background: `${accent}12`, border: `1px solid ${accent}30`, color: accent }">{{ w.attackBonus }}</span>
+          <span class="text-ink-light">{{ w.damage }} {{ w.type }}</span>
+          <span v-if="w.range !== '5'" class="text-ink-light">({{ w.range }})</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Saving Throws -->
     <div v-if="store.data.savingThrows" class="mb-4">
       <h3 class="font-heading text-xs uppercase tracking-wider text-ink-light mb-1">Saving Throws</h3>
@@ -155,10 +169,24 @@ const skillList = computed(() => {
     <!-- Spells -->
     <div v-if="store.data.spells.length" class="mb-4">
       <h3 class="font-heading text-xs uppercase tracking-wider text-ink-light mb-1">Magias</h3>
+      <!-- Spell Slots -->
+      <div v-if="store.data.spellSlots?.length" class="flex flex-wrap gap-1 mb-2">
+        <span v-for="(count, i) in store.data.spellSlots" :key="i" class="text-[10px] px-2 py-0.5 rounded font-heading" :style="{ background: `${accent}10`, border: `1px solid ${accent}25`, color: accent }">
+          {{ i + 1 }}º: {{ count }}
+        </span>
+      </div>
       <div class="flex flex-wrap gap-1">
         <span v-for="sp in store.data.spells" :key="sp.name" class="text-[11px] px-2 py-0.5 rounded font-body text-ink" :style="{ background: `${accent}12`, border: `1px solid ${accent}30` }">
           {{ sp.name }} <span class="text-ink-light">({{ sp.level === 0 ? 'cantrip' : `lv${sp.level}` }})</span>
         </span>
+      </div>
+    </div>
+
+    <!-- Languages -->
+    <div v-if="store.data.languages?.length" class="mb-4">
+      <h3 class="font-heading text-xs uppercase tracking-wider text-ink-light mb-1">Idiomas</h3>
+      <div class="flex flex-wrap gap-1">
+        <span v-for="lang in store.data.languages" :key="lang" class="text-[11px] bg-ink/5 border border-border-ornate/30 px-2 py-0.5 rounded font-body text-ink">{{ lang }}</span>
       </div>
     </div>
 
@@ -180,6 +208,17 @@ const skillList = computed(() => {
       <p class="font-body text-xs text-ink italic leading-relaxed">{{ store.data.dmNotes }}</p>
     </div>
 
+    <!-- Personality (PC) -->
+    <div v-if="!isNpc && (store.data.personality || store.data.ideals || store.data.bonds || store.data.flaws)" class="mb-4 p-3 rounded" :style="{ background: `${accent}06`, border: `1px solid ${accent}20` }">
+      <h3 class="font-heading text-xs uppercase tracking-wider text-ink-light mb-2">Personalidade</h3>
+      <div class="grid grid-cols-2 gap-2 text-xs font-body text-ink">
+        <p v-if="store.data.personality" class="col-span-2"><span class="font-bold">Traços:</span> {{ store.data.personality }}</p>
+        <p v-if="store.data.ideals"><span class="font-bold">Ideais:</span> {{ store.data.ideals }}</p>
+        <p v-if="store.data.bonds"><span class="font-bold">Vínculos:</span> {{ store.data.bonds }}</p>
+        <p v-if="store.data.flaws" class="col-span-2"><span class="font-bold">Fraquezas:</span> {{ store.data.flaws }}</p>
+      </div>
+    </div>
+
     <!-- Backstory -->
     <div v-if="store.data.backstory" class="mb-4">
       <div class="h-[2px] mb-2" :style="{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }"></div>
@@ -194,8 +233,13 @@ const skillList = computed(() => {
       <input type="file" accept="image/*" @change="handleImageUpload" class="mt-1 block text-xs text-ink-light file:mr-3 file:py-1 file:px-3 file:rounded file:border file:border-border-ornate file:bg-parchment-dark file:text-ink file:font-heading file:text-xs file:cursor-pointer" />
     </label>
 
-    <button @click="exportPdf" class="btn-blood w-full py-3 rounded font-bold text-sm">
-      ⚔ Gerar PDF
-    </button>
+    <div class="flex gap-2">
+      <button @click="exportPdf" class="btn-blood flex-1 py-3 rounded font-bold text-sm">
+        ⚔ Gerar PDF
+      </button>
+      <button @click="downloadMarkdown(store.data)" class="flex-1 py-3 rounded font-bold text-sm font-heading uppercase tracking-wider bg-ink/10 border border-border-ornate text-ink hover:bg-ink/20 transition">
+        📜 Exportar MD
+      </button>
+    </div>
   </section>
 </template>
