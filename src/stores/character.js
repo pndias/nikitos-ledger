@@ -32,9 +32,13 @@ export const useCharacterStore = defineStore('character', () => {
     if (data.value) data.value._portrait = base64
   }
 
+  function updateField(key, value) {
+    if (data.value) data.value[key] = value
+  }
+
   function setLoading(val) { loading.value = val }
   function setError(msg) { error.value = msg }
   function setMode(m) { mode.value = m }
 
-  return { characters, activeIndex, data, imageBase64, loading, error, mode, pcs, npcs, addCharacter, selectCharacter, setImage, setLoading, setError, setMode }
+  return { characters, activeIndex, data, imageBase64, loading, error, mode, pcs, npcs, addCharacter, selectCharacter, setImage, updateField, setLoading, setError, setMode }
 })

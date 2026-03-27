@@ -1,101 +1,44 @@
 import { PDFDocument } from 'pdf-lib'
 
 /**
- * Mapeamento dos campos do PDF oficial D&D 5.5 (character-sheet.pdf do D&D Beyond).
- * Baseado na inspeção de coordenadas dos form fields.
+ * Field mapping for Old Dungeon Master's 5.5 Character Sheet v4.
+ * Source: https://olddungeonmaster.com
+ *
+ * Skills are laid out in a 9×2 grid:
+ *   Column 0 (left):  Acrobatics, Animal Handling, Arcana, Athletics, Deception, History, Insight, Intimidation, Investigation
+ *   Column 1 (right): Medicine, Nature, Perception, Performance, Persuasion, Religion, Sleight of Hand, Stealth, Survival
+ *
+ * Spells: "0-.X" = cantrips, "1-.X" = 1st level, … "9-.X" = 9th level
  */
 
-// Campos de texto da página 1 — mapeados por posição no PDF
-const FIELD_MAP = {
-  // Header
-  characterName: 'Text1',       // x:27  y:758 — topo, nome grande
-  classLevel: 'Text6',          // x:25  y:737
-  background: 'Text7',          // x:151 y:737
-  race: 'Text8',                // x:25  y:715
-  alignment: 'Text9',           // x:151 y:715
-  experiencePoints: 'Text11',   // x:266 y:741
-  playerName: 'Text12',         // x:261 y:720
+// Skills ordered by position in the PDF grid
+const SKILL_GRID = [
+  ['Acrobatics',      'Medicine'],        // row 0
+  ['Animal Handling', 'Nature'],          // row 1
+  ['Arcana',          'Perception'],      // row 2
+  ['Athletics',       'Performance'],     // row 3
+  ['Deception',       'Persuasion'],      // row 4
+  ['History',         'Religion'],        // row 5
+  ['Insight',         'Sleight of Hand'], // row 6
+  ['Intimidation',    'Stealth'],         // row 7
+  ['Investigation',   'Survival'],        // row 8
+]
 
-  // Ability scores (big numbers) — left column
-  strScore: 'Text93',           // x:14  y:716
-  dexScore: 'Text94',           // x:13  y:688
-  conScore: 'Text95',           // x:13  y:660
-  intScore: 'Text21',           // x:29  y:550
-  wisScore: 'Text22',           // x:29  y:520 (approx)
-  chaScore: 'Text23',           // x:29  y:490 (approx)
-
-  // Ability modifiers
-  strMod: 'Text19',             // x:43  y:619
-  dexMod: 'Text20',             // x:138 y:628 — wait, need to recheck
-  
-  // Inspiration
-  inspiration: 'Text13',        // x:326 y:729
-  profBonus: 'Text14',          // x:384 y:716
-
-  // AC, Initiative, Speed
-  ac: 'Text26',                 // x:245 y:635
-  initiative: 'Text27',         // x:338 y:635
-  speed: 'Text28',              // x:437 y:634
-
-  // HP
-  hpMax: 'Text29',              // x:529 y:634
-  hpCurrent: 'Text63',          // x:172 y:626 — actually this might be different
-
-  // Hit dice
-  hitDice: 'Text30',            // x:231 y:573
-
-  // Personality section (page 1 right side)
-  personalityTraits: 'Text96',  // x:418 y:686 — big box
-  ideals: 'Text97',             // x:419 y:508
-  bonds: 'Text100',             // x:419 y:482
-  flaws: 'Text101',             // x:419 y:462 (approx)
-
-  // Features & Traits (bottom left)
-  featuresTraits: 'Text102',    // large text area
-
-  // Equipment
-  equipment: 'Text103',
-}
-
-// Skill checkboxes and modifiers — ordered as they appear on the sheet
-// The skills section uses Check Box 11-38 for proficiency and Text69-92 for modifiers
-const SKILL_FIELDS = {
-  'Acrobatics':      { check: 'Check Box11', mod: 'Text69' },
-  'Animal Handling': { check: 'Check Box12', mod: 'Text70' },
-  'Arcana':          { check: 'Check Box13', mod: 'Text71' },
-  'Athletics':       { check: 'Check Box14', mod: 'Text72' },
-  'Deception':       { check: 'Check Box15', mod: 'Text73' },
-  'History':         { check: 'Check Box16', mod: 'Text74' },
-  'Insight':         { check: 'Check Box17', mod: 'Text75' },  // approx
-  'Intimidation':    { check: 'Check Box18', mod: 'Text76' },
-  'Investigation':   { check: 'Check Box19', mod: 'Text77' },
-  'Medicine':        { check: 'Check Box20', mod: 'Text78' },
-  'Nature':          { check: 'Check Box21', mod: 'Text79' },
-  'Perception':      { check: 'Check Box22', mod: 'Text80' },
-  'Performance':     { check: 'Check Box23', mod: 'Text81' },
-  'Persuasion':      { check: 'Check Box24', mod: 'Text82' },
-  'Religion':        { check: 'Check Box25', mod: 'Text83' },
-  'Sleight of Hand': { check: 'Check Box26', mod: 'Text84' },
-  'Stealth':         { check: 'Check Box27', mod: 'Text85' },
-  'Survival':        { check: 'Check Box28', mod: 'Text86' },
-}
-
-// Saving throw checkboxes
 const SAVE_FIELDS = {
-  str: { check: 'Check Box29', mod: 'Text87' },
-  dex: { check: 'Check Box30', mod: 'Text88' },
-  con: { check: 'Check Box31', mod: 'Text89' },
-  int: { check: 'Check Box32', mod: 'Text90' },
-  wis: { check: 'Check Box33', mod: 'Text91' },
-  cha: { check: 'Check Box34', mod: 'Text92' },
+  str: { check: 'STR_Prof',  mod: 'STR Save' },
+  dex: { check: 'DEX Prof',  mod: 'DEX Save' },
+  con: { check: 'CON Prof',  mod: 'CON Save' },
+  int: { check: 'INT Prof',  mod: 'INT Save' },
+  wis: { check: 'WIS Prof',  mod: 'WIS Save' },
+  cha: { check: 'CHA Prof',  mod: 'CHA Save' },
 }
 
-function safeSetText(form, fieldName, value) {
-  try { form.getTextField(fieldName).setText(String(value ?? '')) } catch { /* field not found */ }
+function safeSet(form, name, value) {
+  try { form.getTextField(name).setText(String(value ?? '')) } catch { /* field not found */ }
 }
 
-function safeCheck(form, fieldName, checked) {
-  try { if (checked) form.getCheckBox(fieldName).check(); else form.getCheckBox(fieldName).uncheck() } catch { /* */ }
+function safeCheck(form, name, checked) {
+  try { if (checked) form.getCheckBox(name).check(); else form.getCheckBox(name).uncheck() } catch { /* */ }
 }
 
 export async function usePdf(charData, imageBase64 = null) {
@@ -103,101 +46,115 @@ export async function usePdf(charData, imageBase64 = null) {
   let pdfDoc
 
   try {
-    const existingPdfBytes = await fetch(url).then(r => {
-      if (!r.ok) throw new Error('Template not found')
-      return r.arrayBuffer()
-    })
-    pdfDoc = await PDFDocument.load(existingPdfBytes, { ignoreEncryption: true })
+    const bytes = await fetch(url).then(r => { if (!r.ok) throw new Error(); return r.arrayBuffer() })
+    pdfDoc = await PDFDocument.load(bytes, { ignoreEncryption: true })
   } catch {
-    // Fallback: create blank PDF if template missing
+    // Fallback: blank PDF
     pdfDoc = await PDFDocument.create()
     const page = pdfDoc.addPage([612, 792])
     page.drawText(`${charData.name} — ${charData.class}`, { x: 50, y: 740, size: 18 })
     page.drawText(`Race: ${charData.race} | Level: ${charData.level} | HP: ${charData.hp} | AC: ${charData.ac}`, { x: 50, y: 710, size: 11 })
     if (charData.backstory) page.drawText(charData.backstory.slice(0, 500), { x: 50, y: 680, size: 9, maxWidth: 500 })
-    const pdfBytes = await pdfDoc.save()
-    return downloadBlob(pdfBytes, `${charData.name || 'character'}.pdf`)
+    return downloadBlob(await pdfDoc.save(), `${charData.name || 'character'}.pdf`)
   }
 
   const form = pdfDoc.getForm()
   const c = charData
 
   // Header
-  safeSetText(form, FIELD_MAP.characterName, c.name)
-  safeSetText(form, FIELD_MAP.classLevel, c.class)
-  safeSetText(form, FIELD_MAP.race, c.race)
-  safeSetText(form, FIELD_MAP.background, c.background)
-  safeSetText(form, FIELD_MAP.alignment, c.alignment)
-  safeSetText(form, FIELD_MAP.profBonus, c.proficiencyBonusDisplay || `+${c.proficiencyBonus}`)
+  safeSet(form, 'Name', c.name)
+  safeSet(form, 'Level', c.level)
+  safeSet(form, 'PLAYER NAME', 'Nikito\'s Ledger')
+  safeSet(form, 'BONUS', c.proficiencyBonusDisplay || `+${c.proficiencyBonus}`)
 
   // Ability scores & modifiers
-  const abilityScoreFields = ['strScore', 'dexScore', 'conScore', 'intScore', 'wisScore', 'chaScore']
-  const abilityModFields = ['strMod', 'dexMod']  // only 2 mapped with certainty
   const abilityKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
-
-  // Set scores via the known large-number fields
-  const scoreFieldNames = ['Text93', 'Text94', 'Text95', 'Text21', 'Text22', 'Text23']
-  const modFieldNames = ['Text19', 'Text20', 'Text63', 'Text64', 'Text65', 'Text66']
+  const scoreFields = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']
+  const modFields = ['StrMod', 'DexMod', 'ConMod', 'IntMod', 'WisMod', 'ChaMod']
   abilityKeys.forEach((k, i) => {
-    safeSetText(form, scoreFieldNames[i], c.abilities[k]?.score)
-    safeSetText(form, modFieldNames[i], c.abilities[k]?.display)
+    safeSet(form, scoreFields[i], c.abilities[k]?.score)
+    safeSet(form, modFields[i], c.abilities[k]?.display)
   })
 
   // Saving throws
   for (const [k, fields] of Object.entries(SAVE_FIELDS)) {
     if (c.savingThrows?.[k]) {
-      safeSetText(form, fields.mod, c.savingThrows[k].display)
+      safeSet(form, fields.mod, c.savingThrows[k].display)
       safeCheck(form, fields.check, c.savingThrows[k].proficient)
     }
   }
 
-  // Skills
-  for (const [name, fields] of Object.entries(SKILL_FIELDS)) {
-    if (c.skills?.[name]) {
-      safeSetText(form, fields.mod, c.skills[name].display)
-      safeCheck(form, fields.check, c.skills[name].proficient)
+  // Skills — Skill_Mod.row.col for modifier, Skill_Status.row.col for proficiency marker
+  for (let row = 0; row < SKILL_GRID.length; row++) {
+    for (let col = 0; col < 2; col++) {
+      const name = SKILL_GRID[row][col]
+      const sk = c.skills?.[name]
+      if (sk) {
+        safeSet(form, `Skill_Mod.${row}.${col}`, sk.display)
+        safeSet(form, `Skill_Status.${row}.${col}`, sk.proficient ? 'P' : '')
+      }
     }
   }
 
-  // Combat stats
-  safeSetText(form, FIELD_MAP.ac, c.ac)
-  safeSetText(form, FIELD_MAP.initiative, c.initiative?.display)
-  safeSetText(form, FIELD_MAP.speed, `${c.speed}ft`)
-  safeSetText(form, FIELD_MAP.hpMax, c.hp)
-  safeSetText(form, FIELD_MAP.hitDice, c.hitDie)
+  // Combat
+  safeSet(form, 'AC.Base', c.ac)
+  safeSet(form, 'Initiative', c.initiative?.display)
+  safeSet(form, 'Speed', `${c.speed}ft`)
+  safeSet(form, 'HP-Max', c.hp)
+  safeSet(form, 'HP-Current', c.hp)
+  safeSet(form, 'HD-Type', c.hitDie)
+  safeSet(form, 'Passive Wisdom Perception', c.passivePerception)
 
-  // Passive Perception
-  safeSetText(form, 'Text15', c.passivePerception)
-
-  // Personality / Features
-  const traitsText = (c.traits || []).map(t => `${t.name}: ${t.description}`).join('\n')
-  safeSetText(form, FIELD_MAP.personalityTraits, traitsText)
-
+  // Features & Traits
   const featuresText = (c.features || []).map(f => `${f.name}: ${f.description}`).join('\n')
-  safeSetText(form, FIELD_MAP.featuresTraits, featuresText)
+  safeSet(form, 'Features and Traits', featuresText)
 
-  const equipText = (c.equipment || []).join(', ')
-  safeSetText(form, FIELD_MAP.equipment, equipText)
+  // Feats (use traits)
+  const traitsText = (c.traits || []).map(t => `${t.name}: ${t.description}`).join('\n')
+  safeSet(form, 'Feats', traitsText)
 
-  // Backstory on page 3 if exists
-  safeSetText(form, 'Text116', c.backstory)
+  // Backstory in notes
+  safeSet(form, 'Page1Notes', c.backstory)
 
-  // Embed character image
+  // Spellcasting
+  if (c.spellcasting) {
+    safeSet(form, 'Spell_Ability', c.spellcasting.ability.toUpperCase())
+    safeSet(form, 'Atk Mod', c.spellcasting.attackBonusDisplay)
+    safeSet(form, 'SS Mod', c.spellcasting.saveDC)
+  }
+
+  // Spells — grouped by level into "level-.index" fields
+  if (c.spells?.length) {
+    const byLevel = {}
+    for (const sp of c.spells) {
+      const lv = sp.level ?? 0
+      if (!byLevel[lv]) byLevel[lv] = []
+      byLevel[lv].push(sp.name)
+    }
+    for (const [lv, names] of Object.entries(byLevel)) {
+      names.forEach((name, i) => safeSet(form, `${lv}-.${i}`, name))
+    }
+  }
+
+  // Equipment — fill Gear.Quan fields (up to 29 slots)
+  if (c.equipment?.length) {
+    c.equipment.slice(0, 29).forEach((eq, i) => safeSet(form, `Gear.Quan.${i}`, eq))
+  }
+
+  // Embed portrait
   if (imageBase64) {
     try {
       const isPng = imageBase64.startsWith('data:image/png') || imageBase64.includes('iVBOR')
-      const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '')
-      const bytes = Uint8Array.from(atob(cleanBase64), ch => ch.charCodeAt(0))
+      const clean = imageBase64.replace(/^data:image\/\w+;base64,/, '')
+      const bytes = Uint8Array.from(atob(clean), ch => ch.charCodeAt(0))
       const image = isPng ? await pdfDoc.embedPng(bytes) : await pdfDoc.embedJpg(bytes)
-      const page = pdfDoc.getPages()[0]
-      page.drawImage(image, { x: 435, y: 610, width: 130, height: 160 })
+      pdfDoc.getPages()[0].drawImage(image, { x: 435, y: 610, width: 130, height: 160 })
     } catch (e) {
       console.warn('Failed to embed image:', e)
     }
   }
 
-  const pdfBytes = await pdfDoc.save()
-  downloadBlob(pdfBytes, `${c.name || 'character'}.pdf`)
+  downloadBlob(await pdfDoc.save(), `${c.name || 'character'}.pdf`)
 }
 
 function downloadBlob(bytes, filename) {

@@ -15,6 +15,12 @@ function handleImageUpload(e) {
 
 function exportPdf() { usePdf(store.data, store.imageBase64) }
 
+function edit(key, e) {
+  const val = e.target.innerText.trim()
+  if (key === 'level') store.updateField(key, parseInt(val) || 1)
+  else store.updateField(key, val)
+}
+
 const theme = computed(() => store.data?.theme ?? {})
 const accent = computed(() => theme.value.accentColor ?? '#c9a84c')
 const symbol = computed(() => theme.value.symbol ?? '⚔')
@@ -54,10 +60,18 @@ const skillList = computed(() => {
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2">
           <span class="text-lg">{{ symbol }}</span>
-          <h2 class="font-heading text-2xl font-black text-ink tracking-wide truncate">{{ store.data.name }}</h2>
+          <h2 contenteditable="true" spellcheck="false" @blur="edit('name', $event)" class="font-heading text-2xl font-black text-ink tracking-wide truncate outline-none border-b border-transparent hover:border-border-ornate/40 focus:border-gold/50">{{ store.data.name }}</h2>
         </div>
-        <p class="font-body text-ink-light italic text-sm">{{ store.data.race }} · {{ store.data.class }} · Nível {{ store.data.level }}</p>
-        <p class="font-body text-ink-light text-xs">{{ store.data.background }} · {{ store.data.alignment }}</p>
+        <p class="font-body text-ink-light italic text-sm">
+          <span contenteditable="true" spellcheck="false" @blur="edit('race', $event)" class="outline-none border-b border-transparent hover:border-border-ornate/40 focus:border-gold/50">{{ store.data.race }}</span>
+          · {{ store.data.class }} ·
+          Nível <span contenteditable="true" spellcheck="false" @blur="edit('level', $event)" class="outline-none border-b border-transparent hover:border-border-ornate/40 focus:border-gold/50">{{ store.data.level }}</span>
+        </p>
+        <p class="font-body text-ink-light text-xs">
+          <span contenteditable="true" spellcheck="false" @blur="edit('background', $event)" class="outline-none border-b border-transparent hover:border-border-ornate/40 focus:border-gold/50">{{ store.data.background }}</span>
+          ·
+          <span contenteditable="true" spellcheck="false" @blur="edit('alignment', $event)" class="outline-none border-b border-transparent hover:border-border-ornate/40 focus:border-gold/50">{{ store.data.alignment }}</span>
+        </p>
       </div>
     </div>
 

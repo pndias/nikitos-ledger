@@ -14,6 +14,7 @@ A minimalist web tool that lets players and DMs generate complete character shee
 - **Image Support** — Attach character art in the prompt; it becomes the portrait on the sheet and PDF
 - **Unique Visual Identity** — Each character gets a personalized color scheme, symbol, and ornamental details
 - **PDF Export** — Generate styled PDFs with embedded portraits using the official D&D template
+- **Inline Editing** — Click to edit character name, race, level, background, and alignment directly on the sheet
 - **Dual Mode** — Sidebar with separate PC and NPC categories for organized campaign management
 
 ## 🖼️ Aesthetic
@@ -42,7 +43,7 @@ npm run dev
 
 - Node.js 18+
 - A [Google Gemini API key](https://aistudio.google.com/apikey) (free tier works)
-- A D&D 5.5 editable PDF template in `public/templates/dnd_5.5_official.pdf`
+- A D&D 5.5 editable PDF template in `public/templates/` ([Old Dungeon Master's v4](https://olddungeonmaster.com/wp-content/uploads/2025/03/5.5-character-sheet_v4.pdf))
 
 ## 🏗️ Architecture
 
