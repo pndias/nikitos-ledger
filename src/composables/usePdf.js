@@ -3,173 +3,43 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 /**
  * D&D Beyond 2024 Character Sheet — coordinate-based PDF fill.
  * Template: 2 pages, 603×774pt, NO form fields (flat PDF).
- * All values drawn at mapped positions.
+ * Coordinates calibrated via marker overlay on actual template.
  */
 
-const INK = rgb(0.12, 0.09, 0.06)
-const GRAY = rgb(0.35, 0.30, 0.25)
+const INK = rgb(0.1, 0.07, 0.04)
 
-// ─── PAGE 1 COORDINATES (603 × 774) ───
-// Measured from bottom-left origin (PDF standard)
-const P1 = {
-  // Header
-  charName:   { x: 78, y: 728, size: 14 },
-  classLevel: { x: 265, y: 744, size: 8 },
-  background: { x: 265, y: 728, size: 8 },
-  species:    { x: 420, y: 744, size: 8 },
-  alignment:  { x: 420, y: 728, size: 8 },
-  playerName: { x: 510, y: 744, size: 7 },
-  xp:         { x: 510, y: 728, size: 7 },
-
-  // Ability scores (left column) — score on top, modifier below
-  abilities: {
-    str: { score: { x: 42, y: 636 }, mod: { x: 42, y: 618 } },
-    dex: { score: { x: 42, y: 554 }, mod: { x: 42, y: 536 } },
-    con: { score: { x: 42, y: 472 }, mod: { x: 42, y: 454 } },
-    int: { score: { x: 42, y: 390 }, mod: { x: 42, y: 372 } },
-    wis: { score: { x: 42, y: 308 }, mod: { x: 42, y: 290 } },
-    cha: { score: { x: 42, y: 226 }, mod: { x: 42, y: 208 } },
-  },
-
-  // Saving throws (next to abilities)
-  saves: {
-    str: { x: 95, y: 648, size: 7 },
-    dex: { x: 95, y: 566, size: 7 },
-    con: { x: 95, y: 484, size: 7 },
-    int: { x: 95, y: 402, size: 7 },
-    wis: { x: 95, y: 320, size: 7 },
-    cha: { x: 95, y: 238, size: 7 },
-  },
-
-  // Skills (right of saves, two sub-columns per ability)
-  skills: {
-    'Acrobatics':      { x: 95, y: 540, size: 6.5 },
-    'Animal Handling':  { x: 95, y: 530, size: 6.5 },
-    'Arcana':          { x: 95, y: 376, size: 6.5 },
-    'Athletics':       { x: 95, y: 622, size: 6.5 },
-    'Deception':       { x: 95, y: 212, size: 6.5 },
-    'History':         { x: 95, y: 386, size: 6.5 },
-    'Insight':         { x: 95, y: 304, size: 6.5 },
-    'Intimidation':    { x: 95, y: 222, size: 6.5 },
-    'Investigation':   { x: 95, y: 396, size: 6.5 },
-    'Medicine':        { x: 95, y: 294, size: 6.5 },
-    'Nature':          { x: 95, y: 366, size: 6.5 },
-    'Perception':      { x: 95, y: 314, size: 6.5 },
-    'Performance':     { x: 95, y: 202, size: 6.5 },
-    'Persuasion':      { x: 95, y: 232, size: 6.5 },
-    'Religion':        { x: 95, y: 356, size: 6.5 },
-    'Sleight of Hand': { x: 95, y: 550, size: 6.5 },
-    'Stealth':         { x: 95, y: 520, size: 6.5 },
-    'Survival':        { x: 95, y: 284, size: 6.5 },
-  },
-
-  // Inspiration & Proficiency
-  inspiration: { x: 80, y: 694, size: 9 },
-  profBonus:   { x: 80, y: 676, size: 9 },
-
-  // Combat block (center)
-  ac:         { x: 228, y: 660, size: 16 },
-  initiative: { x: 290, y: 660, size: 14 },
-  speed:      { x: 352, y: 660, size: 14 },
-  hpMax:      { x: 290, y: 610, size: 10 },
-  hpCurrent:  { x: 290, y: 580, size: 14 },
-  tempHp:     { x: 290, y: 530, size: 12 },
-  hitDiceTotal: { x: 240, y: 486, size: 8 },
-  hitDice:      { x: 280, y: 486, size: 8 },
-  deathSaves: { x: 330, y: 486, size: 7 },
-
-  // Attacks & Spellcasting
-  atkHeader: { x: 222, y: 440, size: 8 },
-  attacks: [
-    { name: { x: 224, y: 420 }, bonus: { x: 330, y: 420 }, dmg: { x: 380, y: 420 }, size: 7 },
-    { name: { x: 224, y: 407 }, bonus: { x: 330, y: 407 }, dmg: { x: 380, y: 407 }, size: 7 },
-    { name: { x: 224, y: 394 }, bonus: { x: 330, y: 394 }, dmg: { x: 380, y: 394 }, size: 7 },
-  ],
-  atkNotes: { x: 224, y: 375, size: 6, maxW: 200 },
-
-  // Personality block (right column)
-  personality: { x: 410, y: 660, size: 6.5, maxW: 175 },
-  ideals:      { x: 410, y: 590, size: 6.5, maxW: 175 },
-  bonds:       { x: 410, y: 530, size: 6.5, maxW: 175 },
-  flaws:       { x: 410, y: 470, size: 6.5, maxW: 175 },
-
-  // Features & Traits (right column bottom)
-  features: { x: 410, y: 410, size: 6, maxW: 175 },
-
-  // Equipment (center bottom)
-  equipment: { x: 222, y: 310, size: 6.5, maxW: 190 },
-
-  // Other proficiencies & languages (left bottom)
-  profLang: { x: 20, y: 160, size: 6, maxW: 180 },
-
-  // Passive Perception
-  passivePerception: { x: 42, y: 180, size: 10 },
+function draw(page, text, x, y, size, font, color = INK) {
+  if (text == null || text === '') return
+  page.drawText(String(text), { x, y, size, font, color })
 }
 
-// ─── PAGE 2 COORDINATES ───
-const P2 = {
-  // Character appearance / portrait area (top-right)
-  portrait: { x: 380, y: 580, w: 190, h: 170 },
-
-  // Character name (top)
-  charName: { x: 78, y: 744, size: 10 },
-
-  // Appearance text fields
-  age:    { x: 78, y: 720, size: 8 },
-  height: { x: 200, y: 720, size: 8 },
-  weight: { x: 310, y: 720, size: 8 },
-  eyes:   { x: 78, y: 704, size: 8 },
-  skin:   { x: 200, y: 704, size: 8 },
-  hair:   { x: 310, y: 704, size: 8 },
-
-  // Backstory (left column, large area)
-  backstory: { x: 25, y: 560, size: 6.5, maxW: 330 },
-
-  // Allies & Organizations
-  allies: { x: 380, y: 530, size: 6.5, maxW: 190 },
-
-  // Additional features
-  addFeatures: { x: 380, y: 370, size: 6.5, maxW: 190 },
-
-  // Treasure
-  treasure: { x: 380, y: 200, size: 6.5, maxW: 190 },
+function drawCentered(page, text, cx, y, size, font) {
+  if (text == null || text === '') return
+  const s = String(text)
+  const w = font.widthOfTextAtSize(s, size)
+  page.drawText(s, { x: cx - w / 2, y, size, font, color: INK })
 }
 
-function drawText(page, text, pos, font, defaultSize = 8) {
-  if (!text && text !== 0) return
-  const str = String(text)
-  const size = pos.size || defaultSize
-  if (pos.maxW) {
-    drawWrapped(page, str, pos.x, pos.y, pos.maxW, size, font)
-  } else {
-    page.drawText(str, { x: pos.x, y: pos.y, size, font, color: INK })
-  }
-}
-
-function drawWrapped(page, text, x, y, maxW, size, font) {
-  const words = text.split(/\s+/)
-  let line = ''
-  let cy = y
+function drawWrapped(page, text, x, y, maxW, size, font, maxLines = 60) {
+  if (!text) return y
+  const words = String(text).split(/\s+/)
+  let line = '', cy = y, lines = 0
   for (const word of words) {
     const test = line ? `${line} ${word}` : word
-    const w = font.widthOfTextAtSize(test, size)
-    if (w > maxW && line) {
+    if (font.widthOfTextAtSize(test, size) > maxW && line) {
       page.drawText(line, { x, y: cy, size, font, color: INK })
       cy -= size + 2
       line = word
-      if (cy < 30) break
+      if (++lines >= maxLines || cy < 20) break
     } else {
       line = test
     }
   }
-  if (line && cy >= 30) page.drawText(line, { x, y: cy, size, font, color: INK })
-}
-
-function drawCentered(page, text, cx, y, size, font) {
-  if (!text && text !== 0) return
-  const str = String(text)
-  const w = font.widthOfTextAtSize(str, size)
-  page.drawText(str, { x: cx - w / 2, y, size, font, color: INK })
+  if (line && cy >= 20 && lines < maxLines) {
+    page.drawText(line, { x, y: cy, size, font, color: INK })
+    cy -= size + 2
+  }
+  return cy
 }
 
 export async function usePdf(charData, imageBase64 = null) {
@@ -180,137 +50,220 @@ export async function usePdf(charData, imageBase64 = null) {
     const bytes = await fetch(url).then(r => { if (!r.ok) throw new Error(); return r.arrayBuffer() })
     pdfDoc = await PDFDocument.load(bytes, { ignoreEncryption: true })
   } catch {
-    // Fallback: create blank
     pdfDoc = await PDFDocument.create()
     pdfDoc.addPage([603, 774])
     pdfDoc.addPage([603, 774])
   }
 
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+  const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
   const pages = pdfDoc.getPages()
   const pg1 = pages[0]
-  const pg2 = pages[1]
+  const pg2 = pages[1] || pdfDoc.addPage([603, 774])
   const c = charData
 
-  // ═══ PAGE 1 ═══
+  // ═══════════════════════════════════════════
+  // PAGE 1
+  // ═══════════════════════════════════════════
 
-  // Header
-  pg1.drawText(c.name || '', { x: P1.charName.x, y: P1.charName.y, size: P1.charName.size, font: fontBold, color: INK })
-  drawText(pg1, `${c.class} ${c.level}`, P1.classLevel, font)
-  drawText(pg1, c.background, P1.background, font)
-  drawText(pg1, c.species, P1.species, font)
-  drawText(pg1, c.alignment, P1.alignment, font)
-  drawText(pg1, "Nikito's Ledger", P1.playerName, font)
+  // ── Header ──
+  draw(pg1, c.name, 38, 755, 12, bold)
+  draw(pg1, c.background, 38, 728, 8, font)
+  draw(pg1, c.class, 200, 728, 8, font)
+  draw(pg1, c.species, 38, 703, 8, font)
+  draw(pg1, c.classes?.[0]?.subclass || '', 200, 703, 8, font)
+  // Level (centered in LEVEL box)
+  drawCentered(pg1, c.level, 418, 733, 10, bold)
+  // XP
+  draw(pg1, '', 418, 708, 7, font)
 
-  // Proficiency bonus
-  drawCentered(pg1, c.proficiencyBonusDisplay, P1.profBonus.x, P1.profBonus.y, P1.profBonus.size, fontBold)
+  // ── Top-right boxes (from left to right): ARMOR CLASS | HIT POINTS | HIT DICE | DEATH SAVES ──
+  // ARMOR CLASS: shield shape centered ~x 478
+  drawCentered(pg1, c.ac, 478, 748, 14, bold)
 
-  // Ability scores & modifiers
-  const abilityKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
-  for (const k of abilityKeys) {
-    const ab = c.abilities[k]
+  // HIT POINTS: header area ~x 530-590
+  //   CURRENT line: x~530, y~700  |  MAX line: x~575, y~700
+  //   TEMP: x~530, y~728
+  draw(pg1, c.hp, 535, 700, 9, bold)   // CURRENT
+  draw(pg1, c.hp, 572, 700, 9, font)   // MAX
+
+  // HIT DICE: ~x 500-530 area — but from the image it's further right
+  //   SPENT: x~510, y~728  |  MAX: x~510, y~700
+  draw(pg1, c.hitDie, 510, 700, 7, font) // MAX
+
+  // ── Stats row (y ~660) ──
+  drawCentered(pg1, c.proficiencyBonusDisplay, 68, 660, 11, bold)
+  drawCentered(pg1, c.initiative?.display, 370, 660, 11, bold)
+  drawCentered(pg1, `${c.speed}ft`, 460, 660, 10, font)
+  drawCentered(pg1, c.size || 'M', 540, 660, 9, font)
+  drawCentered(pg1, c.passivePerception, 575, 660, 10, bold)
+
+  // ── Ability Blocks ──
+  // Save/skill values go in the blank line BEFORE the label text.
+  // The circle (○) is at x~28 (left col) or x~190 (right col).
+  // The blank line for the value is between the circle and the label.
+  // Left column skills: value at x~38, right column skills: value at x~200
+  // The label text starts at ~x 60 (left) or ~x 220 (right)
+
+  const abilityLayout = {
+    str: {
+      modCx: 58, modY: 560, scoreX: 100, scoreY: 555,
+      saveX: 38, saveY: 505,
+      skillX: 38, skillStartY: 490, skillH: 14,
+      skills: ['Athletics'],
+    },
+    dex: {
+      modCx: 58, modY: 430, scoreX: 100, scoreY: 425,
+      saveX: 38, saveY: 395,
+      skillX: 38, skillStartY: 380, skillH: 14,
+      skills: ['Acrobatics', 'Sleight of Hand', 'Stealth'],
+    },
+    con: {
+      modCx: 58, modY: 290, scoreX: 100, scoreY: 285,
+      saveX: 38, saveY: 252,
+      skillX: 38, skillStartY: 0, skillH: 14,
+      skills: [],
+    },
+    int: {
+      modCx: 215, modY: 610, scoreX: 255, scoreY: 605,
+      saveX: 200, saveY: 580,
+      skillX: 200, skillStartY: 565, skillH: 14,
+      skills: ['Arcana', 'History', 'Investigation', 'Nature', 'Religion'],
+    },
+    wis: {
+      modCx: 215, modY: 460, scoreX: 255, scoreY: 455,
+      saveX: 200, saveY: 400,
+      skillX: 200, skillStartY: 385, skillH: 14,
+      skills: ['Animal Handling', 'Insight', 'Medicine', 'Perception', 'Survival'],
+    },
+    cha: {
+      modCx: 215, modY: 290, scoreX: 255, scoreY: 285,
+      saveX: 200, saveY: 240,
+      skillX: 200, skillStartY: 225, skillH: 14,
+      skills: ['Deception', 'Intimidation', 'Performance', 'Persuasion'],
+    },
+  }
+
+  for (const [k, lay] of Object.entries(abilityLayout)) {
+    const ab = c.abilities?.[k]
     if (!ab) continue
-    const pos = P1.abilities[k]
-    drawCentered(pg1, ab.score, pos.score.x, pos.score.y, 12, fontBold)
-    drawCentered(pg1, ab.display, pos.mod.x, pos.mod.y, 16, fontBold)
-  }
 
-  // Saving throws
-  for (const k of abilityKeys) {
+    // Modifier centered in hex
+    drawCentered(pg1, ab.display, lay.modCx, lay.modY, 14, bold)
+    // Score
+    draw(pg1, ab.score, lay.scoreX, lay.scoreY, 9, font)
+
+    // Saving throw value (in the blank line area)
     const sv = c.savingThrows?.[k]
-    if (!sv) continue
-    const pos = P1.saves[k]
-    const label = `${sv.proficient ? '● ' : '○ '}${sv.display} ${k.toUpperCase()}`
-    pg1.drawText(label, { x: pos.x, y: pos.y, size: pos.size, font: sv.proficient ? fontBold : font, color: INK })
-  }
+    if (sv) draw(pg1, sv.display, lay.saveX, lay.saveY, 7, sv.proficient ? bold : font)
 
-  // Skills
-  for (const [name, sk] of Object.entries(c.skills || {})) {
-    const pos = P1.skills[name]
-    if (!pos) continue
-    const label = `${sk.proficient ? '● ' : '○ '}${sk.display} ${name}`
-    pg1.drawText(label, { x: pos.x, y: pos.y, size: pos.size, font: sk.proficient ? fontBold : font, color: sk.proficient ? INK : GRAY })
-  }
-
-  // Combat
-  drawCentered(pg1, c.ac, P1.ac.x, P1.ac.y, P1.ac.size, fontBold)
-  drawCentered(pg1, c.initiative?.display, P1.initiative.x, P1.initiative.y, P1.initiative.size, fontBold)
-  drawCentered(pg1, `${c.speed}ft`, P1.speed.x, P1.speed.y, P1.speed.size, font)
-  drawText(pg1, `${c.hp}`, P1.hpMax, font)
-  drawCentered(pg1, c.hp, P1.hpCurrent.x, P1.hpCurrent.y, P1.hpCurrent.size, fontBold)
-  drawText(pg1, c.level, P1.hitDiceTotal, font)
-  drawText(pg1, c.hitDie?.replace(/^\d+/, '') || '', P1.hitDice, font)
-
-  // Passive Perception
-  drawCentered(pg1, c.passivePerception, P1.passivePerception.x, P1.passivePerception.y, P1.passivePerception.size, fontBold)
-
-  // Attacks
-  if (c.weapons?.length) {
-    c.weapons.slice(0, 3).forEach((w, i) => {
-      const pos = P1.attacks[i]
-      pg1.drawText(w.name, { x: pos.name.x, y: pos.name.y, size: pos.size, font, color: INK })
-      pg1.drawText(w.attackBonus, { x: pos.bonus.x, y: pos.bonus.y, size: pos.size, font: fontBold, color: INK })
-      pg1.drawText(`${w.damage} ${w.type}`, { x: pos.dmg.x, y: pos.dmg.y, size: pos.size, font, color: INK })
+    // Skills
+    lay.skills.forEach((name, i) => {
+      const sk = c.skills?.[name]
+      if (!sk) return
+      draw(pg1, sk.display, lay.skillX, lay.skillStartY - i * lay.skillH, 7, sk.proficient ? bold : font)
     })
-    // Spellcasting note
-    if (c.spellcasting) {
-      drawWrapped(pg1, `Spell DC ${c.spellcasting.saveDC} | Atk ${c.spellcasting.attackBonusDisplay} (${c.spellcasting.ability.toUpperCase()})`, P1.atkNotes.x, P1.atkNotes.y, P1.atkNotes.maxW, P1.atkNotes.size, font)
-    }
   }
 
-  // Personality
-  drawText(pg1, c.personality, P1.personality, font)
-  drawText(pg1, c.ideals, P1.ideals, font)
-  drawText(pg1, c.bonds, P1.bonds, font)
-  drawText(pg1, c.flaws, P1.flaws, font)
+  // ── Weapons & Damage table ──
+  // Name x~310, Atk Bonus x~435, Damage x~500, Notes x~570
+  // First data row y~575, row height ~16
+  if (c.weapons?.length) {
+    c.weapons.slice(0, 8).forEach((w, i) => {
+      const y = 575 - i * 16
+      draw(pg1, w.name, 310, y, 7, font)
+      draw(pg1, w.attackBonus, 435, y, 7, bold)
+      draw(pg1, `${w.damage} ${w.type}`, 500, y, 7, font)
+      if (w.range && w.range !== '5') draw(pg1, w.range, 570, y, 6, font)
+    })
+  }
 
-  // Features & Traits
+  // ── Class Features (x~430, y~430, maxW ~160) ──
   const featText = (c.features || []).map(f => `${f.name}: ${f.description}`).join('\n')
-  drawText(pg1, featText, P1.features, font)
+  drawWrapped(pg1, featText, 430, 430, 160, 5.5, font, 25)
 
-  // Equipment
-  const eqText = (c.equipment || []).join(', ')
-  drawText(pg1, eqText, P1.equipment, font)
+  // ── Species Traits (x~310, y~180, maxW ~150) ──
+  const traitText = (c.traits || []).map(t => `${t.name}: ${t.description}`).join('\n')
+  drawWrapped(pg1, traitText, 310, 178, 150, 5.5, font, 10)
 
-  // Proficiencies & Languages
-  const profLangText = [
-    `Languages: ${(c.languages || []).join(', ')}`,
-    ...(c.traits || []).map(t => `${t.name}: ${t.description}`),
-  ].join('\n')
-  drawText(pg1, profLangText, P1.profLang, font)
+  // ── Feats (x~500, y~180, maxW ~90) ──
+  if (c.originFeat) draw(pg1, c.originFeat, 500, 178, 5.5, font)
 
-  // ═══ PAGE 2 ═══
+  // ── Equipment Training & Proficiencies ──
+  draw(pg1, (c.languages || []).join(', '), 38, 48, 6, font)
 
-  // Name
-  drawText(pg2, c.name, P2.charName, fontBold)
+  // ═══════════════════════════════════════════
+  // PAGE 2
+  // ═══════════════════════════════════════════
 
-  // Backstory
-  drawText(pg2, c.backstory, P2.backstory, font)
-
-  // Spells as additional features
-  if (c.spells?.length) {
-    const spellText = c.spells.map(s => `${s.name} (${s.level === 0 ? 'cantrip' : `lv${s.level}`})`).join(', ')
-    drawText(pg2, `Spells: ${spellText}`, P2.addFeatures, font)
+  // ── Spellcasting ──
+  if (c.spellcasting) {
+    draw(pg2, c.spellcasting.ability.toUpperCase(), 38, 748, 7, font)
+    draw(pg2, c.spellcasting.attackBonusDisplay, 38, 720, 10, bold)
+    draw(pg2, c.spellcasting.saveDC, 38, 700, 10, bold)
+    draw(pg2, c.spellcasting.attackBonusDisplay, 38, 665, 10, bold)
   }
 
-  // Spell slots as treasure area (reuse)
+  // ── Spell Slots (Total column) ──
+  const slotPos = [
+    { x: 198, y: 693 }, { x: 198, y: 678 }, { x: 198, y: 663 }, // Lv 1-3
+    { x: 330, y: 693 }, { x: 330, y: 678 }, { x: 330, y: 663 }, // Lv 4-6
+    { x: 470, y: 693 }, { x: 470, y: 678 }, { x: 470, y: 663 }, // Lv 7-9
+  ]
   if (c.spellSlots?.length) {
-    const slotText = c.spellSlots.map((n, i) => `${i + 1}st: ${n}`).join(' | ')
-    drawText(pg2, `Spell Slots: ${slotText}`, P2.treasure, font)
+    c.spellSlots.forEach((count, i) => {
+      if (i < slotPos.length && count > 0) {
+        draw(pg2, count, slotPos[i].x, slotPos[i].y, 8, bold)
+      }
+    })
   }
 
-  // ═══ PORTRAIT in Appearance area (page 2, top-right) ═══
+  // ── Cantrips & Prepared Spells ──
+  if (c.spells?.length) {
+    const sorted = [...c.spells].sort((a, b) => (a.level ?? 0) - (b.level ?? 0))
+    sorted.slice(0, 30).forEach((sp, i) => {
+      const y = 600 - i * 18.3
+      if (y < 25) return
+      draw(pg2, sp.level ?? 0, 30, y, 6, font)
+      draw(pg2, sp.name, 60, y, 6, font)
+    })
+  }
+
+  // ── Right column (all boxes x~422, maxW ~168) ──
+
+  // Backstory & Personality (start y~635, below header)
+  const backstoryBlock = [
+    c.personality ? `Traits: ${c.personality}` : '',
+    c.ideals ? `Ideals: ${c.ideals}` : '',
+    c.bonds ? `Bonds: ${c.bonds}` : '',
+    c.flaws ? `Flaws: ${c.flaws}` : '',
+    '',
+    c.backstory || '',
+  ].filter(Boolean).join('\n')
+  drawWrapped(pg2, backstoryBlock, 422, 632, 168, 5.5, font, 30)
+
+  // Alignment (y~490)
+  draw(pg2, c.alignment, 422, 490, 7, font)
+
+  // Languages (y~430)
+  drawWrapped(pg2, (c.languages || []).join(', '), 422, 428, 168, 6, font, 4)
+
+  // Equipment (y~358)
+  drawWrapped(pg2, (c.equipment || []).join(', '), 422, 355, 168, 5.5, font, 12)
+
+  // ── Portrait in APPEARANCE area (top-right page 2) ──
+  // Box: x 422–588, y 660–750
   if (imageBase64) {
     try {
       const isPng = imageBase64.startsWith('data:image/png') || imageBase64.includes('iVBOR')
       const clean = imageBase64.replace(/^data:image\/\w+;base64,/, '')
-      const bytes = Uint8Array.from(atob(clean), ch => ch.charCodeAt(0))
-      const image = isPng ? await pdfDoc.embedPng(bytes) : await pdfDoc.embedJpg(bytes)
-      const dims = image.scaleToFit(P2.portrait.w, P2.portrait.h)
+      const imgBytes = Uint8Array.from(atob(clean), ch => ch.charCodeAt(0))
+      const image = isPng ? await pdfDoc.embedPng(imgBytes) : await pdfDoc.embedJpg(imgBytes)
+      const boxX = 422, boxY = 660, boxW = 166, boxH = 90
+      const dims = image.scaleToFit(boxW, boxH)
       pg2.drawImage(image, {
-        x: P2.portrait.x + (P2.portrait.w - dims.width) / 2,
-        y: P2.portrait.y + (P2.portrait.h - dims.height) / 2,
+        x: boxX + (boxW - dims.width) / 2,
+        y: boxY + (boxH - dims.height) / 2,
         width: dims.width,
         height: dims.height,
       })
