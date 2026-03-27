@@ -82,7 +82,7 @@ defineEmits(['toggle'])
             <span>{{ char.theme?.symbol ?? '👤' }}</span>
             <div class="min-w-0">
               <p class="font-heading text-parchment text-xs truncate">{{ char.name }}</p>
-              <p class="text-parchment-dark text-[10px] truncate">{{ char.race }} · {{ char.crRating ? `CR ${char.crRating}` : char.class }}</p>
+              <p class="text-parchment-dark text-[10px] truncate">{{ char.species }} · {{ char.crRating ? `CR ${char.crRating}` : char.class }}</p>
             </div>
           </div>
         </button>

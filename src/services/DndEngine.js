@@ -217,8 +217,9 @@ export function computeCharacter(raw) {
   const classDisplay = classes.map(cl => `${cl.name} ${cl.level}`).join(' / ')
 
   return {
-    name: c.name || 'Unnamed', race: c.race || '', class: classDisplay, classes, level: totalLevel,
+    name: c.name || 'Unnamed', species: c.species || c.race || '', class: classDisplay, classes, level: totalLevel,
     background: c.background || '', alignment: c.alignment || '',
+    originFeat: c.originFeat || '',
     size: c.size || 'M',
     abilities, savingThrows, skills,
     hp, hitDie: `${totalLevel}d${hitDie}`, ac, speed,

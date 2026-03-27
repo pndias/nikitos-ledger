@@ -64,7 +64,7 @@ const skillList = computed(() => {
           <h2 contenteditable="true" spellcheck="false" @blur="edit('name', $event)" class="font-heading text-2xl font-black text-ink tracking-wide truncate outline-none border-b border-transparent hover:border-border-ornate/40 focus:border-gold/50">{{ store.data.name }}</h2>
         </div>
         <p class="font-body text-ink-light italic text-sm">
-          <span contenteditable="true" spellcheck="false" @blur="edit('race', $event)" class="outline-none border-b border-transparent hover:border-border-ornate/40 focus:border-gold/50">{{ store.data.race }}</span>
+          <span contenteditable="true" spellcheck="false" @blur="edit('species', $event)" class="outline-none border-b border-transparent hover:border-border-ornate/40 focus:border-gold/50">{{ store.data.species }}</span>
           · {{ store.data.class }} ·
           Nível <span contenteditable="true" spellcheck="false" @blur="edit('level', $event)" class="outline-none border-b border-transparent hover:border-border-ornate/40 focus:border-gold/50">{{ store.data.level }}</span>
         </p>
@@ -72,6 +72,7 @@ const skillList = computed(() => {
           <span contenteditable="true" spellcheck="false" @blur="edit('background', $event)" class="outline-none border-b border-transparent hover:border-border-ornate/40 focus:border-gold/50">{{ store.data.background }}</span>
           ·
           <span contenteditable="true" spellcheck="false" @blur="edit('alignment', $event)" class="outline-none border-b border-transparent hover:border-border-ornate/40 focus:border-gold/50">{{ store.data.alignment }}</span>
+          <template v-if="store.data.originFeat"> · <span class="italic">{{ store.data.originFeat }}</span></template>
         </p>
       </div>
     </div>

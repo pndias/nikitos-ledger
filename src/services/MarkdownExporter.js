@@ -10,11 +10,12 @@ export function characterToMarkdown(c) {
   // YAML frontmatter (Obsidian Properties)
   lines.push('---')
   lines.push(`name: "${c.name}"`)
-  lines.push(`race: "${c.race}"`)
+  lines.push(`species: "${c.species}"`)
   lines.push(`class: "${c.class}"`)
   lines.push(`level: ${c.level}`)
   lines.push(`background: "${c.background}"`)
   lines.push(`alignment: "${c.alignment}"`)
+  if (c.originFeat) lines.push(`originFeat: "${c.originFeat}"`)
   lines.push(`hp: ${c.hp}`)
   lines.push(`ac: ${c.ac}`)
   lines.push(`speed: ${c.speed}`)
@@ -32,7 +33,7 @@ export function characterToMarkdown(c) {
 
   // Header
   lines.push(`# ${c.name}`)
-  lines.push(`*${c.race} · ${c.class} · Nível ${c.level} · ${c.alignment}*`)
+  lines.push(`*${c.species} · ${c.class} · Nível ${c.level} · ${c.alignment}${c.originFeat ? ` · ${c.originFeat}` : ''}*`)
   lines.push('')
 
   // Abilities table

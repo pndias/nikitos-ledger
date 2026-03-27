@@ -67,7 +67,7 @@ export async function usePdf(charData, imageBase64 = null) {
     pdfDoc = await PDFDocument.create()
     const page = pdfDoc.addPage([612, 792])
     page.drawText(`${charData.name} — ${charData.class}`, { x: 50, y: 740, size: 18 })
-    page.drawText(`Race: ${charData.race} | Level: ${charData.level} | HP: ${charData.hp} | AC: ${charData.ac}`, { x: 50, y: 710, size: 11 })
+    page.drawText(`Species: ${charData.species} | Level: ${charData.level} | HP: ${charData.hp} | AC: ${charData.ac}`, { x: 50, y: 710, size: 11 })
     if (charData.backstory) page.drawText(charData.backstory.slice(0, 500), { x: 50, y: 680, size: 9, maxWidth: 500 })
     return downloadBlob(await pdfDoc.save(), `${charData.name || 'character'}.pdf`)
   }
@@ -87,7 +87,7 @@ export async function usePdf(charData, imageBase64 = null) {
   // Dropdowns
   const primaryClass = c.classes?.[0]?.name || ''
   safeSelect(form, 'CLASS', primaryClass)
-  safeSelect(form, 'Species', c.race)
+  safeSelect(form, 'Species', c.species)
   safeSelect(form, 'Bckground', c.background)
   const alignAbbr = ALIGNMENT_MAP[c.alignment?.toLowerCase()] || c.alignment || ''
   safeSelect(form, 'Alignmant', alignAbbr)

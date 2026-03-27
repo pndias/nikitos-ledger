@@ -1,26 +1,28 @@
 /**
  * Serviço de geração via Gemini Flash 2.5.
  * Suporta geração de PCs e NPCs.
+ * Usa regras do Player's Handbook 2024 (D&D 5.5).
  */
 
 const BASE_SCHEMA = `{
   "name": "string",
-  "race": "string",
-  "class": [{"name": "string", "level": number}],
+  "species": "string — Aasimar, Dragonborn, Dwarf, Elf, Gnome, Goliath, Halfling, Human, Orc, Tiefling",
+  "class": [{"name": "string", "level": number, "subclass": "string or null if below level 3"}],
   "level": number,
-  "background": "string",
-  "alignment": "string — use abbreviation: LG, NG, CG, LN, N, CN, LE, NE, CE",
+  "background": "string — one of: Acolyte, Artisan, Charlatan, Criminal, Entertainer, Farmer, Guard, Guide, Hermit, Merchant, Noble, Sage, Sailor, Scribe, Soldier, Wayfarer",
+  "originFeat": "string — the feat granted by the background",
+  "alignment": "string — LG, NG, CG, LN, N, CN, LE, NE, CE",
   "size": "string — S, M, L",
   "abilities": {"str": number, "dex": number, "con": number, "int": number, "wis": number, "cha": number},
   "hp": number,
   "ac": number,
-  "armor": "string — exact name: Unarmored, Padded Armor, Leather Armor, Studded Leather Armor, Hide Armor, Chain Shirt, Scale Mail, Breastplate, Half Plate, Ring Mail, Chain Mail, Splint Armor, or Plate Armor",
+  "armor": "string — Unarmored, Padded Armor, Leather Armor, Studded Leather Armor, Hide Armor, Chain Shirt, Scale Mail, Breastplate, Half Plate, Ring Mail, Chain Mail, Splint Armor, or Plate Armor",
   "shield": boolean,
   "speed": number,
   "proficiencyBonus": number,
   "skills": ["string"],
   "savingThrows": ["string"],
-  "languages": ["string"],
+  "languages": ["string — always include Common plus two others"],
   "weapons": [{"name": "string — exact PHB weapon name", "quantity": number}],
   "traits": [{"name": "string", "description": "string"}],
   "features": [{"name": "string", "description": "string"}],
@@ -37,14 +39,23 @@ const BASE_SCHEMA = `{
   }
 }`
 
-const PC_PROMPT = `You are a D&D 5.5 (2024 revised rules) player character generator. Return ONLY valid JSON with this schema:
+const PC_PROMPT = `You are a D&D 2024 Player's Handbook character generator. Return ONLY valid JSON with this schema:
 ${BASE_SCHEMA}
-Use official D&D 5.5 rules. Calculate stats correctly. Be creative with backstory.
+IMPORTANT 2024 RULES:
+- "Race" is now called "Species". Use only: Aasimar, Dragonborn, Dwarf, Elf, Gnome, Goliath, Halfling, Human, Orc, Tiefling.
+- Species NO LONGER grant ability score increases. Ability score bonuses come from Background (+2/+1 or +1/+1/+1 to the background's three eligible scores).
+- Each Background grants an Origin Feat, two skill proficiencies, and one tool proficiency.
+- Subclasses are gained at level 3 for ALL classes.
+- Characters know Common plus two languages of their choice.
+- Use the 16 official 2024 backgrounds: Acolyte, Artisan, Charlatan, Criminal, Entertainer, Farmer, Guard, Guide, Hermit, Merchant, Noble, Sage, Sailor, Scribe, Soldier, Wayfarer.
+- Background→Feat mapping: Acolyte→Magic Initiate(Cleric), Artisan→Crafter, Charlatan→Skilled, Criminal→Alert, Entertainer→Musician, Farmer→Tough, Guard→Alert, Guide→Magic Initiate(Druid), Hermit→Healer, Merchant→Lucky, Noble→Skilled, Sage→Magic Initiate(Wizard), Sailor→Tavern Brawler, Scribe→Skilled, Soldier→Savage Attacker, Wayfarer→Lucky.
+Calculate stats correctly. Be creative with backstory.
 If an image is provided, use it as visual reference and incorporate details into backstory/traits.
-The "theme" should reflect class, race, and personality.`
+The "theme" should reflect class, species, and personality.`
 
-const NPC_PROMPT = `You are a D&D 5.5 (2024 revised rules) NPC generator for Dungeon Masters. Return ONLY valid JSON with this schema:
+const NPC_PROMPT = `You are a D&D 2024 Player's Handbook NPC generator for Dungeon Masters. Return ONLY valid JSON with this schema:
 ${BASE_SCHEMA.replace('"backstory": "string"', '"backstory": "string",\n  "dmNotes": "string — secret motivations, plot hooks, and tactical notes for the DM",\n  "roleplaying": {"voice": "string", "mannerisms": "string", "ideals": "string", "bonds": "string", "flaws": "string"},\n  "crRating": "string"')}
+IMPORTANT: Use 2024 PHB rules. Species (not race) no longer grant ability score increases — those come from Background.
 Create a memorable, useful NPC. Include DM-facing notes with secret motivations, plot hooks, and how to roleplay them.
 NPCs can be any CR — commoners, merchants, villains, monsters with humanoid stats, etc.
 If an image is provided, use it as visual reference.
