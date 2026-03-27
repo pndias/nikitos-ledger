@@ -6,13 +6,13 @@
   --color-parchment-dark: #d4c4a1;
   --color-ink: #2a1a0a;
   --color-ink-light: #5a4a3a;
-  --color-gold: #c9a84c;
-  --color-gold-bright: #e8c84c;
-  --color-blood: #8b2500;
-  --color-bg-dark: #1a1210;
-  --color-bg-panel: #2a2018;
-  --color-bg-panel-light: #3a3028;
-  --color-border-ornate: #6a5a3a;
+  --color-gold: #b8943e;
+  --color-gold-bright: #d4aa44;
+  --color-blood: #7a2010;
+  --color-bg-dark: #2e2318;
+  --color-bg-panel: #3b2f22;
+  --color-bg-panel-light: #4d3e2e;
+  --color-border-ornate: #7a6844;
   --font-heading: 'Cinzel', serif;
   --font-body: 'Crimson Text', serif;
 }
@@ -20,8 +20,8 @@
 body {
   background-color: var(--color-bg-dark);
   background-image:
-    radial-gradient(ellipse at 20% 50%, rgba(201, 168, 76, 0.03) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 50%, rgba(139, 37, 0, 0.03) 0%, transparent 50%);
+    radial-gradient(ellipse at 20% 50%, rgba(184, 148, 62, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 50%, rgba(122, 32, 16, 0.03) 0%, transparent 50%);
 }
 
 .panel-ornate {
@@ -50,15 +50,15 @@ body {
   font-family: var(--font-heading);
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  background: linear-gradient(180deg, var(--color-gold) 0%, #8a6a2c 100%);
+  background: linear-gradient(180deg, var(--color-gold) 0%, #7a5a1c 100%);
   color: var(--color-ink);
   border: 1px solid var(--color-gold-bright);
-  box-shadow: 0 0 12px rgba(201, 168, 76, 0.2);
+  box-shadow: 0 0 12px rgba(184, 148, 62, 0.2);
   transition: all 0.2s;
 }
 .btn-arcane:hover {
   background: linear-gradient(180deg, var(--color-gold-bright) 0%, var(--color-gold) 100%);
-  box-shadow: 0 0 20px rgba(201, 168, 76, 0.4);
+  box-shadow: 0 0 20px rgba(184, 148, 62, 0.4);
 }
 .btn-arcane:disabled {
   opacity: 0.5;
@@ -69,15 +69,15 @@ body {
   font-family: var(--font-heading);
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  background: linear-gradient(180deg, var(--color-blood) 0%, #5a1800 100%);
+  background: linear-gradient(180deg, var(--color-blood) 0%, #4a1208 100%);
   color: var(--color-parchment);
   border: 1px solid var(--color-blood);
-  box-shadow: 0 0 12px rgba(139, 37, 0, 0.3);
+  box-shadow: 0 0 12px rgba(122, 32, 16, 0.3);
   transition: all 0.2s;
 }
 .btn-blood:hover {
-  background: linear-gradient(180deg, #ab3500 0%, var(--color-blood) 100%);
-  box-shadow: 0 0 20px rgba(139, 37, 0, 0.5);
+  background: linear-gradient(180deg, #9a2a10 0%, var(--color-blood) 100%);
+  box-shadow: 0 0 20px rgba(122, 32, 16, 0.5);
 }
 
 ::-webkit-scrollbar { width: 8px; }

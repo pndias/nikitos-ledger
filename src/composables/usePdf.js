@@ -141,14 +141,21 @@ export async function usePdf(charData, imageBase64 = null) {
     c.equipment.slice(0, 29).forEach((eq, i) => safeSet(form, `Gear.Quan.${i}`, eq))
   }
 
-  // Embed portrait
+  // Embed portrait into the SKETCH area (bottom-right of page 1)
+  // SKETCH button widget rect: x:487 y:41 w:83 h:123
   if (imageBase64) {
     try {
       const isPng = imageBase64.startsWith('data:image/png') || imageBase64.includes('iVBOR')
       const clean = imageBase64.replace(/^data:image\/\w+;base64,/, '')
       const bytes = Uint8Array.from(atob(clean), ch => ch.charCodeAt(0))
       const image = isPng ? await pdfDoc.embedPng(bytes) : await pdfDoc.embedJpg(bytes)
-      pdfDoc.getPages()[0].drawImage(image, { x: 435, y: 610, width: 130, height: 160 })
+      const dims = image.scaleToFit(83, 123)
+      pdfDoc.getPages()[0].drawImage(image, {
+        x: 487 + (83 - dims.width) / 2,
+        y: 41 + (123 - dims.height) / 2,
+        width: dims.width,
+        height: dims.height,
+      })
     } catch (e) {
       console.warn('Failed to embed image:', e)
     }
