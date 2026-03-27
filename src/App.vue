@@ -15,10 +15,10 @@ const sidebarCollapsed = ref(false)
 
     <main class="flex-1 flex flex-col overflow-y-auto">
       <div class="flex-1 flex flex-col justify-center px-6 py-8">
-        <div v-if="store.data" class="max-w-3xl w-full mx-auto mb-8">
+        <div v-if="store.data" class="max-w-4xl w-full mx-auto mb-8">
           <CharacterSheet />
         </div>
-        <div :class="store.data ? 'max-w-3xl w-full mx-auto' : ''">
+        <div :class="store.data ? 'max-w-4xl w-full mx-auto' : ''">
           <PromptInput />
         </div>
       </div>

@@ -1,227 +1,321 @@
-import { PDFDocument } from 'pdf-lib'
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 
 /**
- * Field mapping for Old Dungeon Master's 5.5 Character Sheet v4.
- *
- * Skills grid (9 rows × 2 cols):
- *   Col 0: Acrobatics, Animal Handling, Arcana, Athletics, Deception, History, Insight, Intimidation, Investigation
- *   Col 1: Medicine, Nature, Perception, Performance, Persuasion, Religion, Sleight of Hand, Stealth, Survival
- *
- * Spells: "0-.X" = cantrips, "1-.X" = 1st level, … "9-.X" = 9th level
+ * D&D Beyond 2024 Character Sheet — coordinate-based PDF fill.
+ * Template: 2 pages, 603×774pt, NO form fields (flat PDF).
+ * All values drawn at mapped positions.
  */
 
-const SKILL_GRID = [
-  ['Acrobatics',      'Medicine'],
-  ['Animal Handling', 'Nature'],
-  ['Arcana',          'Perception'],
-  ['Athletics',       'Performance'],
-  ['Deception',       'Persuasion'],
-  ['History',         'Religion'],
-  ['Insight',         'Sleight of Hand'],
-  ['Intimidation',    'Stealth'],
-  ['Investigation',   'Survival'],
-]
+const INK = rgb(0.12, 0.09, 0.06)
+const GRAY = rgb(0.35, 0.30, 0.25)
 
-const SAVE_FIELDS = {
-  str: { check: 'STR_Prof',  mod: 'STR Save' },
-  dex: { check: 'DEX Prof',  mod: 'DEX Save' },
-  con: { check: 'CON Prof',  mod: 'CON Save' },
-  int: { check: 'INT Prof',  mod: 'INT Save' },
-  wis: { check: 'WIS Prof',  mod: 'WIS Save' },
-  cha: { check: 'CHA Prof',  mod: 'CHA Save' },
+// ─── PAGE 1 COORDINATES (603 × 774) ───
+// Measured from bottom-left origin (PDF standard)
+const P1 = {
+  // Header
+  charName:   { x: 78, y: 728, size: 14 },
+  classLevel: { x: 265, y: 744, size: 8 },
+  background: { x: 265, y: 728, size: 8 },
+  species:    { x: 420, y: 744, size: 8 },
+  alignment:  { x: 420, y: 728, size: 8 },
+  playerName: { x: 510, y: 744, size: 7 },
+  xp:         { x: 510, y: 728, size: 7 },
+
+  // Ability scores (left column) — score on top, modifier below
+  abilities: {
+    str: { score: { x: 42, y: 636 }, mod: { x: 42, y: 618 } },
+    dex: { score: { x: 42, y: 554 }, mod: { x: 42, y: 536 } },
+    con: { score: { x: 42, y: 472 }, mod: { x: 42, y: 454 } },
+    int: { score: { x: 42, y: 390 }, mod: { x: 42, y: 372 } },
+    wis: { score: { x: 42, y: 308 }, mod: { x: 42, y: 290 } },
+    cha: { score: { x: 42, y: 226 }, mod: { x: 42, y: 208 } },
+  },
+
+  // Saving throws (next to abilities)
+  saves: {
+    str: { x: 95, y: 648, size: 7 },
+    dex: { x: 95, y: 566, size: 7 },
+    con: { x: 95, y: 484, size: 7 },
+    int: { x: 95, y: 402, size: 7 },
+    wis: { x: 95, y: 320, size: 7 },
+    cha: { x: 95, y: 238, size: 7 },
+  },
+
+  // Skills (right of saves, two sub-columns per ability)
+  skills: {
+    'Acrobatics':      { x: 95, y: 540, size: 6.5 },
+    'Animal Handling':  { x: 95, y: 530, size: 6.5 },
+    'Arcana':          { x: 95, y: 376, size: 6.5 },
+    'Athletics':       { x: 95, y: 622, size: 6.5 },
+    'Deception':       { x: 95, y: 212, size: 6.5 },
+    'History':         { x: 95, y: 386, size: 6.5 },
+    'Insight':         { x: 95, y: 304, size: 6.5 },
+    'Intimidation':    { x: 95, y: 222, size: 6.5 },
+    'Investigation':   { x: 95, y: 396, size: 6.5 },
+    'Medicine':        { x: 95, y: 294, size: 6.5 },
+    'Nature':          { x: 95, y: 366, size: 6.5 },
+    'Perception':      { x: 95, y: 314, size: 6.5 },
+    'Performance':     { x: 95, y: 202, size: 6.5 },
+    'Persuasion':      { x: 95, y: 232, size: 6.5 },
+    'Religion':        { x: 95, y: 356, size: 6.5 },
+    'Sleight of Hand': { x: 95, y: 550, size: 6.5 },
+    'Stealth':         { x: 95, y: 520, size: 6.5 },
+    'Survival':        { x: 95, y: 284, size: 6.5 },
+  },
+
+  // Inspiration & Proficiency
+  inspiration: { x: 80, y: 694, size: 9 },
+  profBonus:   { x: 80, y: 676, size: 9 },
+
+  // Combat block (center)
+  ac:         { x: 228, y: 660, size: 16 },
+  initiative: { x: 290, y: 660, size: 14 },
+  speed:      { x: 352, y: 660, size: 14 },
+  hpMax:      { x: 290, y: 610, size: 10 },
+  hpCurrent:  { x: 290, y: 580, size: 14 },
+  tempHp:     { x: 290, y: 530, size: 12 },
+  hitDiceTotal: { x: 240, y: 486, size: 8 },
+  hitDice:      { x: 280, y: 486, size: 8 },
+  deathSaves: { x: 330, y: 486, size: 7 },
+
+  // Attacks & Spellcasting
+  atkHeader: { x: 222, y: 440, size: 8 },
+  attacks: [
+    { name: { x: 224, y: 420 }, bonus: { x: 330, y: 420 }, dmg: { x: 380, y: 420 }, size: 7 },
+    { name: { x: 224, y: 407 }, bonus: { x: 330, y: 407 }, dmg: { x: 380, y: 407 }, size: 7 },
+    { name: { x: 224, y: 394 }, bonus: { x: 330, y: 394 }, dmg: { x: 380, y: 394 }, size: 7 },
+  ],
+  atkNotes: { x: 224, y: 375, size: 6, maxW: 200 },
+
+  // Personality block (right column)
+  personality: { x: 410, y: 660, size: 6.5, maxW: 175 },
+  ideals:      { x: 410, y: 590, size: 6.5, maxW: 175 },
+  bonds:       { x: 410, y: 530, size: 6.5, maxW: 175 },
+  flaws:       { x: 410, y: 470, size: 6.5, maxW: 175 },
+
+  // Features & Traits (right column bottom)
+  features: { x: 410, y: 410, size: 6, maxW: 175 },
+
+  // Equipment (center bottom)
+  equipment: { x: 222, y: 310, size: 6.5, maxW: 190 },
+
+  // Other proficiencies & languages (left bottom)
+  profLang: { x: 20, y: 160, size: 6, maxW: 180 },
+
+  // Passive Perception
+  passivePerception: { x: 42, y: 180, size: 10 },
 }
 
-// Alignment abbreviation map for the dropdown
-const ALIGNMENT_MAP = {
-  'lawful good': 'LG', 'neutral good': 'NG', 'chaotic good': 'CG',
-  'lawful neutral': 'LN', 'neutral': 'N', 'true neutral': 'N', 'chaotic neutral': 'CN',
-  'lawful evil': 'LE', 'neutral evil': 'NE', 'chaotic evil': 'CE',
+// ─── PAGE 2 COORDINATES ───
+const P2 = {
+  // Character appearance / portrait area (top-right)
+  portrait: { x: 380, y: 580, w: 190, h: 170 },
+
+  // Character name (top)
+  charName: { x: 78, y: 744, size: 10 },
+
+  // Appearance text fields
+  age:    { x: 78, y: 720, size: 8 },
+  height: { x: 200, y: 720, size: 8 },
+  weight: { x: 310, y: 720, size: 8 },
+  eyes:   { x: 78, y: 704, size: 8 },
+  skin:   { x: 200, y: 704, size: 8 },
+  hair:   { x: 310, y: 704, size: 8 },
+
+  // Backstory (left column, large area)
+  backstory: { x: 25, y: 560, size: 6.5, maxW: 330 },
+
+  // Allies & Organizations
+  allies: { x: 380, y: 530, size: 6.5, maxW: 190 },
+
+  // Additional features
+  addFeatures: { x: 380, y: 370, size: 6.5, maxW: 190 },
+
+  // Treasure
+  treasure: { x: 380, y: 200, size: 6.5, maxW: 190 },
 }
 
-function safeSet(form, name, value) {
-  try { form.getTextField(name).setText(String(value ?? '')) } catch { /* */ }
+function drawText(page, text, pos, font, defaultSize = 8) {
+  if (!text && text !== 0) return
+  const str = String(text)
+  const size = pos.size || defaultSize
+  if (pos.maxW) {
+    drawWrapped(page, str, pos.x, pos.y, pos.maxW, size, font)
+  } else {
+    page.drawText(str, { x: pos.x, y: pos.y, size, font, color: INK })
+  }
 }
 
-function safeCheck(form, name, checked) {
-  try { if (checked) form.getCheckBox(name).check(); else form.getCheckBox(name).uncheck() } catch { /* */ }
+function drawWrapped(page, text, x, y, maxW, size, font) {
+  const words = text.split(/\s+/)
+  let line = ''
+  let cy = y
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word
+    const w = font.widthOfTextAtSize(test, size)
+    if (w > maxW && line) {
+      page.drawText(line, { x, y: cy, size, font, color: INK })
+      cy -= size + 2
+      line = word
+      if (cy < 30) break
+    } else {
+      line = test
+    }
+  }
+  if (line && cy >= 30) page.drawText(line, { x, y: cy, size, font, color: INK })
 }
 
-function safeSelect(form, name, value) {
-  try {
-    const dd = form.getDropdown(name)
-    const opts = dd.getOptions().map(o => o.toLowerCase())
-    const val = String(value ?? '').toLowerCase()
-    const idx = opts.findIndex(o => o === val || o.includes(val) || val.includes(o))
-    if (idx >= 0) dd.select(dd.getOptions()[idx])
-  } catch { /* */ }
+function drawCentered(page, text, cx, y, size, font) {
+  if (!text && text !== 0) return
+  const str = String(text)
+  const w = font.widthOfTextAtSize(str, size)
+  page.drawText(str, { x: cx - w / 2, y, size, font, color: INK })
 }
 
 export async function usePdf(charData, imageBase64 = null) {
-  const url = '/templates/dnd_5.5_official.pdf'
+  const url = '/templates/dndbeyond_2024.pdf'
   let pdfDoc
 
   try {
     const bytes = await fetch(url).then(r => { if (!r.ok) throw new Error(); return r.arrayBuffer() })
     pdfDoc = await PDFDocument.load(bytes, { ignoreEncryption: true })
   } catch {
+    // Fallback: create blank
     pdfDoc = await PDFDocument.create()
-    const page = pdfDoc.addPage([612, 792])
-    page.drawText(`${charData.name} — ${charData.class}`, { x: 50, y: 740, size: 18 })
-    page.drawText(`Species: ${charData.species} | Level: ${charData.level} | HP: ${charData.hp} | AC: ${charData.ac}`, { x: 50, y: 710, size: 11 })
-    if (charData.backstory) page.drawText(charData.backstory.slice(0, 500), { x: 50, y: 680, size: 9, maxWidth: 500 })
-    return downloadBlob(await pdfDoc.save(), `${charData.name || 'character'}.pdf`)
+    pdfDoc.addPage([603, 774])
+    pdfDoc.addPage([603, 774])
   }
 
-  const form = pdfDoc.getForm()
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+  const pages = pdfDoc.getPages()
+  const pg1 = pages[0]
+  const pg2 = pages[1]
   const c = charData
 
-  // === PAGE 1: Header ===
-  safeSet(form, 'Name', c.name)
-  safeSet(form, 'Level', c.level)
-  safeSet(form, 'PLAYER NAME', "Nikito's Ledger")
-  safeSet(form, 'BONUS', c.proficiencyBonusDisplay || `+${c.proficiencyBonus}`)
-  safeSet(form, 'Date', new Date().toLocaleDateString('pt-BR'))
-  safeSet(form, 'Size', c.size || 'M')
-  safeSet(form, 'Speed', `${c.speed}ft`)
+  // ═══ PAGE 1 ═══
 
-  // Dropdowns
-  const primaryClass = c.classes?.[0]?.name || ''
-  safeSelect(form, 'CLASS', primaryClass)
-  safeSelect(form, 'Species', c.species)
-  safeSelect(form, 'Bckground', c.background)
-  const alignAbbr = ALIGNMENT_MAP[c.alignment?.toLowerCase()] || c.alignment || ''
-  safeSelect(form, 'Alignmant', alignAbbr)
+  // Header
+  pg1.drawText(c.name || '', { x: P1.charName.x, y: P1.charName.y, size: P1.charName.size, font: fontBold, color: INK })
+  drawText(pg1, `${c.class} ${c.level}`, P1.classLevel, font)
+  drawText(pg1, c.background, P1.background, font)
+  drawText(pg1, c.species, P1.species, font)
+  drawText(pg1, c.alignment, P1.alignment, font)
+  drawText(pg1, "Nikito's Ledger", P1.playerName, font)
 
-  // === Ability scores & modifiers ===
-  const scoreFields = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']
-  const modFields = ['StrMod', 'DexMod', 'ConMod', 'IntMod', 'WisMod', 'ChaMod']
+  // Proficiency bonus
+  drawCentered(pg1, c.proficiencyBonusDisplay, P1.profBonus.x, P1.profBonus.y, P1.profBonus.size, fontBold)
+
+  // Ability scores & modifiers
   const abilityKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
-  abilityKeys.forEach((k, i) => {
-    safeSet(form, scoreFields[i], c.abilities[k]?.score)
-    safeSet(form, modFields[i], c.abilities[k]?.display)
-  })
-
-  // === Saving throws ===
-  for (const [k, fields] of Object.entries(SAVE_FIELDS)) {
-    if (c.savingThrows?.[k]) {
-      safeSet(form, fields.mod, c.savingThrows[k].display)
-      safeCheck(form, fields.check, c.savingThrows[k].proficient)
-    }
+  for (const k of abilityKeys) {
+    const ab = c.abilities[k]
+    if (!ab) continue
+    const pos = P1.abilities[k]
+    drawCentered(pg1, ab.score, pos.score.x, pos.score.y, 12, fontBold)
+    drawCentered(pg1, ab.display, pos.mod.x, pos.mod.y, 16, fontBold)
   }
 
-  // === Skills ===
-  for (let row = 0; row < SKILL_GRID.length; row++) {
-    for (let col = 0; col < 2; col++) {
-      const name = SKILL_GRID[row][col]
-      const sk = c.skills?.[name]
-      if (sk) {
-        safeSet(form, `Skill_Mod.${row}.${col}`, sk.display)
-        safeSet(form, `Skill_Status.${row}.${col}`, sk.proficient ? 'P' : '')
-      }
-    }
+  // Saving throws
+  for (const k of abilityKeys) {
+    const sv = c.savingThrows?.[k]
+    if (!sv) continue
+    const pos = P1.saves[k]
+    const label = `${sv.proficient ? '● ' : '○ '}${sv.display} ${k.toUpperCase()}`
+    pg1.drawText(label, { x: pos.x, y: pos.y, size: pos.size, font: sv.proficient ? fontBold : font, color: INK })
   }
 
-  // === Combat ===
-  safeSet(form, 'AC.Base', c.ac)
-  safeSet(form, 'Initiative', c.initiative?.display)
-  safeSet(form, 'HP-Max', c.hp)
-  safeSet(form, 'HP-Current', c.hp)
-  safeSet(form, 'HD-Type', c.hitDie?.replace(/^\d+/, '') || '')
-  safeSet(form, 'HD-Max', c.level)
-  safeSet(form, 'Passive Wisdom Perception', c.passivePerception)
+  // Skills
+  for (const [name, sk] of Object.entries(c.skills || {})) {
+    const pos = P1.skills[name]
+    if (!pos) continue
+    const label = `${sk.proficient ? '● ' : '○ '}${sk.display} ${name}`
+    pg1.drawText(label, { x: pos.x, y: pos.y, size: pos.size, font: sk.proficient ? fontBold : font, color: sk.proficient ? INK : GRAY })
+  }
 
-  // Armor & Shield dropdowns
-  safeSelect(form, 'ARMOR', c.armor || 'Unarmored')
-  safeSelect(form, 'SHIELD', c.shield ? 'Shield' : 'No Shield')
+  // Combat
+  drawCentered(pg1, c.ac, P1.ac.x, P1.ac.y, P1.ac.size, fontBold)
+  drawCentered(pg1, c.initiative?.display, P1.initiative.x, P1.initiative.y, P1.initiative.size, fontBold)
+  drawCentered(pg1, `${c.speed}ft`, P1.speed.x, P1.speed.y, P1.speed.size, font)
+  drawText(pg1, `${c.hp}`, P1.hpMax, font)
+  drawCentered(pg1, c.hp, P1.hpCurrent.x, P1.hpCurrent.y, P1.hpCurrent.size, fontBold)
+  drawText(pg1, c.level, P1.hitDiceTotal, font)
+  drawText(pg1, c.hitDie?.replace(/^\d+/, '') || '', P1.hitDice, font)
 
-  // === Weapons (up to 5) ===
+  // Passive Perception
+  drawCentered(pg1, c.passivePerception, P1.passivePerception.x, P1.passivePerception.y, P1.passivePerception.size, fontBold)
+
+  // Attacks
   if (c.weapons?.length) {
-    c.weapons.slice(0, 5).forEach((w, i) => {
-      safeSelect(form, `WEAPONS.${i}`, w.name)
-      safeSet(form, `ATK1.Wpn.${i}`, w.attackBonus)
-      safeSet(form, `DD.Wpn.${i}`, w.damage)
-      safeSet(form, `Type.Wpn.${i}`, w.type)
-      safeSet(form, `Range.Wpn.${i}`, w.range)
-      if (w.quantity > 1) safeSet(form, `WEP.Quan.${i === 0 ? '0.0' : i}`, w.quantity)
+    c.weapons.slice(0, 3).forEach((w, i) => {
+      const pos = P1.attacks[i]
+      pg1.drawText(w.name, { x: pos.name.x, y: pos.name.y, size: pos.size, font, color: INK })
+      pg1.drawText(w.attackBonus, { x: pos.bonus.x, y: pos.bonus.y, size: pos.size, font: fontBold, color: INK })
+      pg1.drawText(`${w.damage} ${w.type}`, { x: pos.dmg.x, y: pos.dmg.y, size: pos.size, font, color: INK })
     })
+    // Spellcasting note
+    if (c.spellcasting) {
+      drawWrapped(pg1, `Spell DC ${c.spellcasting.saveDC} | Atk ${c.spellcasting.attackBonusDisplay} (${c.spellcasting.ability.toUpperCase()})`, P1.atkNotes.x, P1.atkNotes.y, P1.atkNotes.maxW, P1.atkNotes.size, font)
+    }
   }
 
-  // === Carrying capacity ===
-  safeSet(form, 'Carry', c.carry)
-  safeSet(form, 'Lift', c.lift)
+  // Personality
+  drawText(pg1, c.personality, P1.personality, font)
+  drawText(pg1, c.ideals, P1.ideals, font)
+  drawText(pg1, c.bonds, P1.bonds, font)
+  drawText(pg1, c.flaws, P1.flaws, font)
 
-  // === Personality (page 2 fields) ===
-  safeSet(form, 'Text29', c.personality)  // Personality Traits
-  safeSet(form, 'Text30', c.ideals)       // Ideals
-  safeSet(form, 'Text31', c.bonds)        // Bonds
-  safeSet(form, 'Text32', c.flaws)        // Flaws
+  // Features & Traits
+  const featText = (c.features || []).map(f => `${f.name}: ${f.description}`).join('\n')
+  drawText(pg1, featText, P1.features, font)
 
-  // Languages
-  safeSet(form, 'Languages', (c.languages || []).join(', '))
+  // Equipment
+  const eqText = (c.equipment || []).join(', ')
+  drawText(pg1, eqText, P1.equipment, font)
 
-  // === Features, Traits, Feats ===
-  const featuresText = (c.features || []).map(f => `${f.name}: ${f.description}`).join('\n')
-  safeSet(form, 'Features and Traits', featuresText)
-  const traitsText = (c.traits || []).map(t => `${t.name}: ${t.description}`).join('\n')
-  safeSet(form, 'Feats', traitsText)
+  // Proficiencies & Languages
+  const profLangText = [
+    `Languages: ${(c.languages || []).join(', ')}`,
+    ...(c.traits || []).map(t => `${t.name}: ${t.description}`),
+  ].join('\n')
+  drawText(pg1, profLangText, P1.profLang, font)
 
-  // Advantages/Disadvantages from traits
-  const advantages = (c.traits || []).filter(t => /advantage|resist/i.test(t.description)).map(t => t.name).join(', ')
-  if (advantages) safeSet(form, 'Advantages', advantages)
+  // ═══ PAGE 2 ═══
 
-  // === Equipment (gear slots) ===
-  if (c.equipment?.length) {
-    c.equipment.slice(0, 29).forEach((eq, i) => safeSet(form, `Gear.Quan.${i}`, eq))
-  }
+  // Name
+  drawText(pg2, c.name, P2.charName, fontBold)
 
-  // === Backstory (page 3) ===
-  safeSet(form, 'Text Notes', c.backstory)
-  safeSet(form, 'Page1Notes', c.backstory?.slice(0, 200) || '')
+  // Backstory
+  drawText(pg2, c.backstory, P2.backstory, font)
 
-  // === PAGE 4: Spellcasting ===
-  if (c.spellcasting) {
-    safeSet(form, 'Spell_Ability', c.spellcasting.ability.toUpperCase())
-    safeSet(form, 'Atk Mod', c.spellcasting.attackBonusDisplay)
-    safeSet(form, 'SS Mod', c.spellcasting.saveDC)
-  }
-
-  // Spell slots
-  const slotFields = ['SS-1st', 'SS-2dn', 'SS-3rd', 'SS-4th', 'SS-5th', 'SS-6th', 'SS-7th', 'SS-8th', 'SS-9th']
-  if (c.spellSlots?.length) {
-    c.spellSlots.forEach((count, i) => {
-      if (i < slotFields.length) safeSet(form, slotFields[i], count)
-    })
-  }
-
-  // Spells by level
+  // Spells as additional features
   if (c.spells?.length) {
-    const byLevel = {}
-    for (const sp of c.spells) {
-      const lv = sp.level ?? 0
-      if (!byLevel[lv]) byLevel[lv] = []
-      byLevel[lv].push(sp.name)
-    }
-    for (const [lv, names] of Object.entries(byLevel)) {
-      names.forEach((name, i) => safeSet(form, `${lv}-.${i}`, name))
-    }
+    const spellText = c.spells.map(s => `${s.name} (${s.level === 0 ? 'cantrip' : `lv${s.level}`})`).join(', ')
+    drawText(pg2, `Spells: ${spellText}`, P2.addFeatures, font)
   }
 
-  // === Portrait in SKETCH area (bottom-right page 1) ===
+  // Spell slots as treasure area (reuse)
+  if (c.spellSlots?.length) {
+    const slotText = c.spellSlots.map((n, i) => `${i + 1}st: ${n}`).join(' | ')
+    drawText(pg2, `Spell Slots: ${slotText}`, P2.treasure, font)
+  }
+
+  // ═══ PORTRAIT in Appearance area (page 2, top-right) ═══
   if (imageBase64) {
     try {
       const isPng = imageBase64.startsWith('data:image/png') || imageBase64.includes('iVBOR')
       const clean = imageBase64.replace(/^data:image\/\w+;base64,/, '')
       const bytes = Uint8Array.from(atob(clean), ch => ch.charCodeAt(0))
       const image = isPng ? await pdfDoc.embedPng(bytes) : await pdfDoc.embedJpg(bytes)
-      const dims = image.scaleToFit(83, 123)
-      pdfDoc.getPages()[0].drawImage(image, {
-        x: 487 + (83 - dims.width) / 2,
-        y: 41 + (123 - dims.height) / 2,
+      const dims = image.scaleToFit(P2.portrait.w, P2.portrait.h)
+      pg2.drawImage(image, {
+        x: P2.portrait.x + (P2.portrait.w - dims.width) / 2,
+        y: P2.portrait.y + (P2.portrait.h - dims.height) / 2,
         width: dims.width,
         height: dims.height,
       })
     } catch (e) {
-      console.warn('Failed to embed image:', e)
+      console.warn('Failed to embed portrait:', e)
     }
   }
 

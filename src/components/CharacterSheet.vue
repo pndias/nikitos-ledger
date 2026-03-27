@@ -1,10 +1,11 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useCharacterStore } from '../stores/character'
 import { usePdf } from '../composables/usePdf'
 import { downloadMarkdown } from '../services/MarkdownExporter'
 
 const store = useCharacterStore()
+const page = ref(1)
 
 function handleImageUpload(e) {
   const file = e.target.files?.[0]
@@ -18,229 +19,543 @@ function exportPdf() { usePdf(store.data, store.imageBase64) }
 
 function edit(key, e) {
   const val = e.target.innerText.trim()
-  if (key === 'level') store.updateField(key, parseInt(val) || 1)
-  else store.updateField(key, val)
+  store.updateField(key, key === 'level' ? (parseInt(val) || 1) : val)
 }
 
-const theme = computed(() => store.data?.theme ?? {})
+const c = computed(() => store.data)
+const theme = computed(() => c.value?.theme ?? {})
 const accent = computed(() => theme.value.accentColor ?? '#c9a84c')
-const symbol = computed(() => theme.value.symbol ?? '⚔')
-const borderStyles = ['solid', 'double', 'dashed']
-const borderType = computed(() => borderStyles[theme.value.borderStyle ?? 0])
-const ornamentDeg = computed(() => `${theme.value.ornamentRotation ?? 0}deg`)
-const isNpc = computed(() => store.data?.type === 'npc')
+const isNpc = computed(() => c.value?.type === 'npc')
 
-// Sorted skills for display
 const skillList = computed(() => {
-  if (!store.data?.skills) return []
-  return Object.entries(store.data.skills).sort((a, b) => a[0].localeCompare(b[0]))
+  if (!c.value?.skills) return []
+  return Object.entries(c.value.skills).sort((a, b) => a[0].localeCompare(b[0]))
 })
+
+const spellsByLevel = computed(() => {
+  if (!c.value?.spells?.length) return {}
+  const grouped = {}
+  for (const sp of c.value.spells) {
+    const lv = sp.level ?? 0
+    if (!grouped[lv]) grouped[lv] = []
+    grouped[lv].push(sp)
+  }
+  return grouped
+})
+
+const saveKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
 </script>
 
 <template>
-  <section
-    v-if="store.data"
-    class="panel-parchment rounded-lg p-6 relative overflow-hidden"
-    :style="{ borderLeftWidth: '4px', borderLeftStyle: borderType, borderLeftColor: accent }"
-  >
-    <!-- Watermark -->
-    <div class="absolute top-4 right-4 text-6xl opacity-[0.06] pointer-events-none select-none" :style="{ transform: `rotate(${ornamentDeg})` }">{{ symbol }}</div>
-    <div class="absolute bottom-3 left-3 w-8 h-8 border-b-2 border-l-2 opacity-20 rounded-bl" :style="{ borderColor: accent }"></div>
-    <div class="absolute top-3 right-3 w-8 h-8 border-t-2 border-r-2 opacity-20 rounded-tr" :style="{ borderColor: accent }"></div>
-
-    <!-- NPC badge -->
-    <div v-if="isNpc" class="absolute top-3 left-3 px-2 py-0.5 rounded text-[9px] font-heading tracking-widest uppercase" :style="{ background: `${accent}25`, color: accent, border: `1px solid ${accent}40` }">
-      NPC{{ store.data.crRating ? ` · CR ${store.data.crRating}` : '' }}
+  <div v-if="c" class="sheet-container">
+    <!-- Page navigation -->
+    <div class="flex justify-center gap-2 mb-4">
+      <button v-for="p in (isNpc ? 2 : 3)" :key="p" @click="page = p"
+        :class="['sheet-tab', page === p && 'sheet-tab-active']"
+        :style="page === p ? { borderColor: accent, color: accent } : {}">
+        {{ ['Ficha', 'Perfil', 'Magias'][p - 1] }}
+      </button>
     </div>
 
-    <!-- Portrait + Header -->
-    <div :class="['flex gap-4 mb-3', isNpc ? 'mt-5' : '']">
-      <div v-if="store.imageBase64" class="shrink-0">
-        <img :src="store.imageBase64" class="w-24 h-28 object-cover rounded shadow-lg" :style="{ border: `2px ${borderType} ${accent}` }" alt="Portrait" />
-      </div>
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2">
-          <span class="text-lg">{{ symbol }}</span>
-          <h2 contenteditable="true" spellcheck="false" @blur="edit('name', $event)" class="font-heading text-2xl font-black text-ink tracking-wide truncate outline-none border-b border-transparent hover:border-border-ornate/40 focus:border-gold/50">{{ store.data.name }}</h2>
+    <!-- ═══════════ PAGE 1: STATS ═══════════ -->
+    <div v-show="page === 1" class="sheet-page">
+      <!-- Header -->
+      <div class="sheet-header" :style="{ borderBottomColor: accent }">
+        <div class="flex-1 min-w-0">
+          <h1 contenteditable spellcheck="false" @blur="edit('name', $event)"
+            class="sheet-name">{{ c.name }}</h1>
+          <div class="sheet-subtitle">
+            <span contenteditable spellcheck="false" @blur="edit('species', $event)" class="sheet-editable">{{ c.species }}</span>
+            <span class="sheet-sep">|</span>
+            <span>{{ c.class }}</span>
+            <span class="sheet-sep">|</span>
+            <span>Nível <span contenteditable spellcheck="false" @blur="edit('level', $event)" class="sheet-editable">{{ c.level }}</span></span>
+            <span class="sheet-sep">|</span>
+            <span contenteditable spellcheck="false" @blur="edit('background', $event)" class="sheet-editable">{{ c.background }}</span>
+            <span class="sheet-sep">|</span>
+            <span contenteditable spellcheck="false" @blur="edit('alignment', $event)" class="sheet-editable">{{ c.alignment }}</span>
+          </div>
+          <div v-if="c.originFeat" class="text-[10px] italic text-ink-light mt-0.5">Feat de Origem: {{ c.originFeat }}</div>
         </div>
-        <p class="font-body text-ink-light italic text-sm">
-          <span contenteditable="true" spellcheck="false" @blur="edit('species', $event)" class="outline-none border-b border-transparent hover:border-border-ornate/40 focus:border-gold/50">{{ store.data.species }}</span>
-          · {{ store.data.class }} ·
-          Nível <span contenteditable="true" spellcheck="false" @blur="edit('level', $event)" class="outline-none border-b border-transparent hover:border-border-ornate/40 focus:border-gold/50">{{ store.data.level }}</span>
-        </p>
-        <p class="font-body text-ink-light text-xs">
-          <span contenteditable="true" spellcheck="false" @blur="edit('background', $event)" class="outline-none border-b border-transparent hover:border-border-ornate/40 focus:border-gold/50">{{ store.data.background }}</span>
-          ·
-          <span contenteditable="true" spellcheck="false" @blur="edit('alignment', $event)" class="outline-none border-b border-transparent hover:border-border-ornate/40 focus:border-gold/50">{{ store.data.alignment }}</span>
-          <template v-if="store.data.originFeat"> · <span class="italic">{{ store.data.originFeat }}</span></template>
-        </p>
-      </div>
-    </div>
-
-    <div class="h-[2px] mb-4" :style="{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }"></div>
-
-    <!-- Abilities -->
-    <div class="grid grid-cols-6 gap-2 mb-4 text-center">
-      <div v-for="(ab, key) in store.data.abilities" :key="key" class="rounded p-2" :style="{ background: `${accent}08`, border: `1px solid ${accent}30` }">
-        <span class="text-[10px] uppercase font-heading tracking-wider text-ink-light">{{ key }}</span>
-        <p class="text-xl font-heading font-black text-ink">{{ ab.score }}</p>
-        <p class="text-xs font-bold" :style="{ color: accent }">{{ ab.display }}</p>
-      </div>
-    </div>
-
-    <!-- Combat stats -->
-    <div class="flex flex-wrap gap-2 mb-4 text-xs font-heading tracking-wider">
-      <span class="bg-blood/10 border border-blood/30 text-blood px-3 py-1 rounded">HP {{ store.data.hp }}</span>
-      <span class="bg-ink/5 border border-border-ornate/40 text-ink px-3 py-1 rounded">AC {{ store.data.ac }}</span>
-      <span class="bg-ink/5 border border-border-ornate/40 text-ink px-3 py-1 rounded">{{ store.data.speed }}ft</span>
-      <span class="bg-ink/5 border border-border-ornate/40 text-ink px-3 py-1 rounded">Init {{ store.data.initiative?.display }}</span>
-      <span class="bg-ink/5 border border-border-ornate/40 text-ink px-3 py-1 rounded">PP {{ store.data.passivePerception }}</span>
-      <span class="px-3 py-1 rounded" :style="{ background: `${accent}15`, border: `1px solid ${accent}40`, color: accent }">
-        Prof {{ store.data.proficiencyBonusDisplay }}
-      </span>
-      <span class="bg-ink/5 border border-border-ornate/40 text-ink px-3 py-1 rounded">HD {{ store.data.hitDie }}</span>
-    </div>
-
-    <!-- Spellcasting -->
-    <div v-if="store.data.spellcasting" class="flex gap-2 mb-4 text-xs font-heading tracking-wider">
-      <span class="px-3 py-1 rounded" :style="{ background: `${accent}12`, border: `1px solid ${accent}30`, color: accent }">
-        Spell DC {{ store.data.spellcasting.saveDC }}
-      </span>
-      <span class="px-3 py-1 rounded" :style="{ background: `${accent}12`, border: `1px solid ${accent}30`, color: accent }">
-        Spell Atk {{ store.data.spellcasting.attackBonusDisplay }}
-      </span>
-      <span class="text-ink-light px-2 py-1">({{ store.data.spellcasting.ability.toUpperCase() }})</span>
-    </div>
-
-    <!-- Weapons -->
-    <div v-if="store.data.weapons?.length" class="mb-4">
-      <h3 class="font-heading text-xs uppercase tracking-wider text-ink-light mb-1">Armas</h3>
-      <div class="space-y-1">
-        <div v-for="w in store.data.weapons" :key="w.name" class="flex items-center gap-2 text-[11px] font-body">
-          <span class="font-bold text-ink">{{ w.name }}</span>
-          <span class="px-1.5 py-0.5 rounded" :style="{ background: `${accent}12`, border: `1px solid ${accent}30`, color: accent }">{{ w.attackBonus }}</span>
-          <span class="text-ink-light">{{ w.damage }} {{ w.type }}</span>
-          <span v-if="w.range !== '5'" class="text-ink-light">({{ w.range }})</span>
+        <div v-if="store.imageBase64" class="shrink-0 ml-4">
+          <img :src="store.imageBase64" class="sheet-portrait-sm" :style="{ borderColor: accent }" alt="Portrait" />
+        </div>
+        <div v-if="isNpc && c.crRating" class="sheet-cr" :style="{ background: `${accent}20`, color: accent, borderColor: `${accent}50` }">
+          CR {{ c.crRating }}
         </div>
       </div>
-    </div>
 
-    <!-- Saving Throws -->
-    <div v-if="store.data.savingThrows" class="mb-4">
-      <h3 class="font-heading text-xs uppercase tracking-wider text-ink-light mb-1">Saving Throws</h3>
-      <div class="flex flex-wrap gap-1">
-        <span
-          v-for="(sv, key) in store.data.savingThrows" :key="key"
-          :class="['text-[11px] px-2 py-0.5 rounded font-body', sv.proficient ? 'font-bold' : '']"
-          :style="sv.proficient ? { background: `${accent}15`, border: `1px solid ${accent}30`, color: accent } : { background: 'rgba(42,26,10,0.05)', border: '1px solid rgba(106,90,58,0.3)', color: '#2a1a0a' }"
-        >{{ key.toUpperCase() }} {{ sv.display }}{{ sv.proficient ? ' ●' : '' }}</span>
+      <!-- Ability Scores -->
+      <div class="grid grid-cols-6 gap-1.5 my-4">
+        <div v-for="k in saveKeys" :key="k" class="sheet-ability" :style="{ borderColor: `${accent}40` }">
+          <div class="sheet-ability-label">{{ k }}</div>
+          <div class="sheet-ability-mod" :style="{ color: accent }">{{ c.abilities[k]?.display }}</div>
+          <div class="sheet-ability-score">{{ c.abilities[k]?.score }}</div>
+        </div>
+      </div>
+
+      <!-- Combat Row -->
+      <div class="flex flex-wrap gap-1.5 mb-4">
+        <div class="sheet-stat-box sheet-stat-hp">
+          <span class="sheet-stat-label">HP</span>
+          <span class="sheet-stat-value">{{ c.hp }}</span>
+        </div>
+        <div class="sheet-stat-box">
+          <span class="sheet-stat-label">AC</span>
+          <span class="sheet-stat-value">{{ c.ac }}</span>
+        </div>
+        <div class="sheet-stat-box">
+          <span class="sheet-stat-label">Iniciativa</span>
+          <span class="sheet-stat-value">{{ c.initiative?.display }}</span>
+        </div>
+        <div class="sheet-stat-box">
+          <span class="sheet-stat-label">Deslocamento</span>
+          <span class="sheet-stat-value">{{ c.speed }}ft</span>
+        </div>
+        <div class="sheet-stat-box" :style="{ borderColor: `${accent}50`, background: `${accent}08` }">
+          <span class="sheet-stat-label">Proficiência</span>
+          <span class="sheet-stat-value" :style="{ color: accent }">{{ c.proficiencyBonusDisplay }}</span>
+        </div>
+        <div class="sheet-stat-box">
+          <span class="sheet-stat-label">Percepção Passiva</span>
+          <span class="sheet-stat-value">{{ c.passivePerception }}</span>
+        </div>
+        <div class="sheet-stat-box">
+          <span class="sheet-stat-label">Dado de Vida</span>
+          <span class="sheet-stat-value">{{ c.hitDie }}</span>
+        </div>
+      </div>
+
+      <!-- Two-column: Saves+Skills | Attacks+Equipment -->
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <!-- Left: Saving Throws + Skills -->
+        <div>
+          <h3 class="sheet-section-title" :style="{ borderColor: accent }">Saving Throws</h3>
+          <div class="grid grid-cols-2 gap-x-3 gap-y-0.5 mb-3">
+            <div v-for="k in saveKeys" :key="k" class="sheet-skill-row"
+              :class="c.savingThrows?.[k]?.proficient && 'sheet-skill-prof'">
+              <span class="sheet-prof-dot" :style="c.savingThrows?.[k]?.proficient ? { color: accent } : {}">{{ c.savingThrows?.[k]?.proficient ? '●' : '○' }}</span>
+              <span class="sheet-skill-mod">{{ c.savingThrows?.[k]?.display }}</span>
+              <span class="sheet-skill-name">{{ k.toUpperCase() }}</span>
+            </div>
+          </div>
+
+          <h3 class="sheet-section-title" :style="{ borderColor: accent }">Perícias</h3>
+          <div class="grid grid-cols-1 gap-y-0">
+            <div v-for="[name, sk] in skillList" :key="name" class="sheet-skill-row"
+              :class="sk.proficient && 'sheet-skill-prof'">
+              <span class="sheet-prof-dot" :style="sk.proficient ? { color: accent } : {}">{{ sk.proficient ? '●' : '○' }}</span>
+              <span class="sheet-skill-mod">{{ sk.display }}</span>
+              <span class="sheet-skill-name">{{ name }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Attacks + Equipment -->
+        <div>
+          <h3 class="sheet-section-title" :style="{ borderColor: accent }">Ataques</h3>
+          <div v-if="c.weapons?.length" class="space-y-1 mb-3">
+            <div v-for="w in c.weapons" :key="w.name" class="sheet-attack-row">
+              <span class="font-bold flex-1">{{ w.name }}</span>
+              <span class="sheet-attack-bonus" :style="{ color: accent }">{{ w.attackBonus }}</span>
+              <span class="text-ink-light">{{ w.damage }} {{ w.type }}</span>
+              <span v-if="w.range !== '5'" class="text-ink-light text-[9px]">({{ w.range }})</span>
+            </div>
+          </div>
+          <div v-if="c.spellcasting" class="sheet-spell-summary mb-3" :style="{ borderColor: `${accent}40`, background: `${accent}06` }">
+            <span>DC <b :style="{ color: accent }">{{ c.spellcasting.saveDC }}</b></span>
+            <span>Atk <b :style="{ color: accent }">{{ c.spellcasting.attackBonusDisplay }}</b></span>
+            <span class="text-ink-light">({{ c.spellcasting.ability.toUpperCase() }})</span>
+          </div>
+
+          <h3 class="sheet-section-title" :style="{ borderColor: accent }">Equipamento</h3>
+          <div class="flex flex-wrap gap-1">
+            <span v-for="eq in c.equipment" :key="eq" class="sheet-tag">{{ eq }}</span>
+          </div>
+
+          <h3 class="sheet-section-title mt-3" :style="{ borderColor: accent }">Idiomas</h3>
+          <div class="flex flex-wrap gap-1">
+            <span v-for="lang in c.languages" :key="lang" class="sheet-tag">{{ lang }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Features & Traits -->
+      <div class="mb-4">
+        <h3 class="sheet-section-title" :style="{ borderColor: accent }">Habilidades & Traços</h3>
+        <div class="grid grid-cols-2 gap-2">
+          <div v-for="f in [...(c.features || []), ...(c.traits || [])]" :key="f.name" class="sheet-feature">
+            <p class="font-bold text-ink text-[11px]">{{ f.name }}</p>
+            <p class="text-ink-light text-[10px] italic leading-tight">{{ f.description }}</p>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Skills -->
-    <div v-if="skillList.length" class="mb-4">
-      <h3 class="font-heading text-xs uppercase tracking-wider text-ink-light mb-1">Perícias</h3>
-      <div class="grid grid-cols-2 gap-x-4 gap-y-0.5">
-        <span
-          v-for="[name, sk] in skillList" :key="name"
-          :class="['text-[11px] font-body', sk.proficient ? 'font-bold text-ink' : 'text-ink-light']"
-        >
-          <span v-if="sk.proficient" :style="{ color: accent }">● </span>{{ sk.display }} {{ name }}
-        </span>
+    <!-- ═══════════ PAGE 2: PROFILE ═══════════ -->
+    <div v-show="page === 2" class="sheet-page">
+      <!-- Portrait large -->
+      <div class="flex gap-6 mb-4">
+        <div class="flex-1">
+          <h3 class="sheet-section-title" :style="{ borderColor: accent }">Personalidade</h3>
+          <div class="space-y-2 text-xs font-body text-ink">
+            <p v-if="c.personality"><span class="font-bold">Traços:</span> {{ c.personality }}</p>
+            <p v-if="c.ideals"><span class="font-bold">Ideais:</span> {{ c.ideals }}</p>
+            <p v-if="c.bonds"><span class="font-bold">Vínculos:</span> {{ c.bonds }}</p>
+            <p v-if="c.flaws"><span class="font-bold">Fraquezas:</span> {{ c.flaws }}</p>
+          </div>
+        </div>
+        <div class="shrink-0">
+          <div class="sheet-portrait-lg" :style="{ borderColor: accent }">
+            <img v-if="store.imageBase64" :src="store.imageBase64" class="w-full h-full object-cover" alt="Portrait" />
+            <label v-else class="flex flex-col items-center justify-center h-full cursor-pointer text-ink-light hover:text-ink transition">
+              <span class="text-3xl mb-1">🖼️</span>
+              <span class="text-[10px] font-heading">Adicionar Retrato</span>
+              <input type="file" accept="image/*" @change="handleImageUpload" class="hidden" />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- NPC Roleplaying -->
+      <div v-if="isNpc && c.roleplaying" class="mb-4 p-3 rounded border border-dashed" :style="{ borderColor: `${accent}50`, background: `${accent}06` }">
+        <h3 class="sheet-section-title" :style="{ borderColor: accent }">🎭 Interpretação (DM)</h3>
+        <div class="grid grid-cols-2 gap-2 text-xs font-body text-ink">
+          <p v-if="c.roleplaying.voice"><span class="font-bold">Voz:</span> {{ c.roleplaying.voice }}</p>
+          <p v-if="c.roleplaying.mannerisms"><span class="font-bold">Maneirismos:</span> {{ c.roleplaying.mannerisms }}</p>
+          <p v-if="c.roleplaying.ideals"><span class="font-bold">Ideais:</span> {{ c.roleplaying.ideals }}</p>
+          <p v-if="c.roleplaying.bonds"><span class="font-bold">Vínculos:</span> {{ c.roleplaying.bonds }}</p>
+          <p v-if="c.roleplaying.flaws" class="col-span-2"><span class="font-bold">Fraquezas:</span> {{ c.roleplaying.flaws }}</p>
+        </div>
+      </div>
+
+      <!-- DM Notes -->
+      <div v-if="isNpc && c.dmNotes" class="mb-4 p-3 bg-blood/5 border border-blood/20 rounded">
+        <h3 class="font-heading text-xs uppercase tracking-wider text-blood mb-1">🔒 Notas do Mestre</h3>
+        <p class="font-body text-xs text-ink italic leading-relaxed">{{ c.dmNotes }}</p>
+      </div>
+
+      <!-- Backstory -->
+      <div class="mb-4">
+        <h3 class="sheet-section-title" :style="{ borderColor: accent }">História</h3>
+        <p class="font-body text-xs text-ink leading-relaxed">{{ c.backstory }}</p>
       </div>
     </div>
 
-    <!-- Equipment -->
-    <div v-if="store.data.equipment.length" class="mb-4">
-      <h3 class="font-heading text-xs uppercase tracking-wider text-ink-light mb-1">Equipamento</h3>
-      <div class="flex flex-wrap gap-1">
-        <span v-for="eq in store.data.equipment" :key="eq" class="text-[11px] bg-ink/5 border border-border-ornate/30 px-2 py-0.5 rounded font-body text-ink">{{ eq }}</span>
+    <!-- ═══════════ PAGE 3: SPELLS ═══════════ -->
+    <div v-show="page === 3 && !isNpc" class="sheet-page">
+      <div v-if="c.spellcasting" class="mb-4">
+        <div class="flex items-center gap-4 mb-3">
+          <h3 class="sheet-section-title mb-0" :style="{ borderColor: accent }">Conjuração</h3>
+          <div class="flex gap-2 text-xs font-heading">
+            <span class="sheet-stat-pill" :style="{ borderColor: `${accent}40`, color: accent }">Habilidade: {{ c.spellcasting.ability.toUpperCase() }}</span>
+            <span class="sheet-stat-pill" :style="{ borderColor: `${accent}40`, color: accent }">DC {{ c.spellcasting.saveDC }}</span>
+            <span class="sheet-stat-pill" :style="{ borderColor: `${accent}40`, color: accent }">Atk {{ c.spellcasting.attackBonusDisplay }}</span>
+          </div>
+        </div>
+
+        <!-- Spell Slots -->
+        <div v-if="c.spellSlots?.length" class="flex flex-wrap gap-1.5 mb-4">
+          <div v-for="(count, i) in c.spellSlots" :key="i" class="sheet-slot" :style="{ borderColor: `${accent}40` }">
+            <span class="sheet-slot-level">{{ i + 1 }}º</span>
+            <span class="sheet-slot-count" :style="{ color: accent }">{{ count }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Spells by level -->
+      <div v-for="(spells, level) in spellsByLevel" :key="level" class="mb-3">
+        <h4 class="text-[11px] font-heading uppercase tracking-wider text-ink-light mb-1 pb-0.5 border-b" :style="{ borderColor: `${accent}30` }">
+          {{ level == 0 ? 'Truques' : `${level}º Nível` }}
+        </h4>
+        <div class="flex flex-wrap gap-1">
+          <span v-for="sp in spells" :key="sp.name" class="sheet-spell-tag" :style="{ borderColor: `${accent}30`, background: `${accent}08` }">
+            {{ sp.name }}
+          </span>
+        </div>
+      </div>
+
+      <div v-if="!c.spellcasting && !c.spells?.length" class="text-center py-12 text-ink-light font-heading text-sm italic">
+        Este personagem não possui magias.
       </div>
     </div>
 
-    <!-- Features -->
-    <div v-if="store.data.features.length" class="mb-4">
-      <h3 class="font-heading text-xs uppercase tracking-wider text-ink-light mb-1">Habilidades</h3>
-      <div v-for="f in store.data.features" :key="f.name" class="mb-2">
-        <p class="font-heading text-sm font-bold text-ink">{{ f.name }}</p>
-        <p class="font-body text-xs text-ink-light italic">{{ f.description }}</p>
-      </div>
-    </div>
-
-    <!-- Spells -->
-    <div v-if="store.data.spells.length" class="mb-4">
-      <h3 class="font-heading text-xs uppercase tracking-wider text-ink-light mb-1">Magias</h3>
-      <!-- Spell Slots -->
-      <div v-if="store.data.spellSlots?.length" class="flex flex-wrap gap-1 mb-2">
-        <span v-for="(count, i) in store.data.spellSlots" :key="i" class="text-[10px] px-2 py-0.5 rounded font-heading" :style="{ background: `${accent}10`, border: `1px solid ${accent}25`, color: accent }">
-          {{ i + 1 }}º: {{ count }}
-        </span>
-      </div>
-      <div class="flex flex-wrap gap-1">
-        <span v-for="sp in store.data.spells" :key="sp.name" class="text-[11px] px-2 py-0.5 rounded font-body text-ink" :style="{ background: `${accent}12`, border: `1px solid ${accent}30` }">
-          {{ sp.name }} <span class="text-ink-light">({{ sp.level === 0 ? 'cantrip' : `lv${sp.level}` }})</span>
-        </span>
-      </div>
-    </div>
-
-    <!-- Languages -->
-    <div v-if="store.data.languages?.length" class="mb-4">
-      <h3 class="font-heading text-xs uppercase tracking-wider text-ink-light mb-1">Idiomas</h3>
-      <div class="flex flex-wrap gap-1">
-        <span v-for="lang in store.data.languages" :key="lang" class="text-[11px] bg-ink/5 border border-border-ornate/30 px-2 py-0.5 rounded font-body text-ink">{{ lang }}</span>
-      </div>
-    </div>
-
-    <!-- NPC Roleplaying -->
-    <div v-if="isNpc && store.data.roleplaying" class="mb-4 p-3 rounded border border-dashed" :style="{ borderColor: `${accent}50`, background: `${accent}06` }">
-      <h3 class="font-heading text-xs uppercase tracking-wider mb-2" :style="{ color: accent }">🎭 Interpretação (DM)</h3>
-      <div class="grid grid-cols-2 gap-2 text-xs font-body text-ink">
-        <p v-if="store.data.roleplaying.voice"><span class="font-bold">Voz:</span> {{ store.data.roleplaying.voice }}</p>
-        <p v-if="store.data.roleplaying.mannerisms"><span class="font-bold">Maneirismos:</span> {{ store.data.roleplaying.mannerisms }}</p>
-        <p v-if="store.data.roleplaying.ideals"><span class="font-bold">Ideais:</span> {{ store.data.roleplaying.ideals }}</p>
-        <p v-if="store.data.roleplaying.bonds"><span class="font-bold">Vínculos:</span> {{ store.data.roleplaying.bonds }}</p>
-        <p v-if="store.data.roleplaying.flaws" class="col-span-2"><span class="font-bold">Fraquezas:</span> {{ store.data.roleplaying.flaws }}</p>
-      </div>
-    </div>
-
-    <!-- DM Notes -->
-    <div v-if="isNpc && store.data.dmNotes" class="mb-4 p-3 bg-blood/5 border border-blood/20 rounded">
-      <h3 class="font-heading text-xs uppercase tracking-wider text-blood mb-1">🔒 Notas do Mestre</h3>
-      <p class="font-body text-xs text-ink italic leading-relaxed">{{ store.data.dmNotes }}</p>
-    </div>
-
-    <!-- Personality (PC) -->
-    <div v-if="!isNpc && (store.data.personality || store.data.ideals || store.data.bonds || store.data.flaws)" class="mb-4 p-3 rounded" :style="{ background: `${accent}06`, border: `1px solid ${accent}20` }">
-      <h3 class="font-heading text-xs uppercase tracking-wider text-ink-light mb-2">Personalidade</h3>
-      <div class="grid grid-cols-2 gap-2 text-xs font-body text-ink">
-        <p v-if="store.data.personality" class="col-span-2"><span class="font-bold">Traços:</span> {{ store.data.personality }}</p>
-        <p v-if="store.data.ideals"><span class="font-bold">Ideais:</span> {{ store.data.ideals }}</p>
-        <p v-if="store.data.bonds"><span class="font-bold">Vínculos:</span> {{ store.data.bonds }}</p>
-        <p v-if="store.data.flaws" class="col-span-2"><span class="font-bold">Fraquezas:</span> {{ store.data.flaws }}</p>
-      </div>
-    </div>
-
-    <!-- Backstory -->
-    <div v-if="store.data.backstory" class="mb-4">
-      <div class="h-[2px] mb-2" :style="{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }"></div>
-      <p class="font-body text-sm text-ink leading-relaxed italic">{{ store.data.backstory }}</p>
-    </div>
-
-    <div class="h-[2px] mb-4" :style="{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }"></div>
-
-    <!-- Image upload -->
-    <label v-if="!store.imageBase64" class="block mb-4 cursor-pointer">
-      <span class="font-heading text-xs uppercase tracking-wider text-ink-light">Retrato</span>
-      <input type="file" accept="image/*" @change="handleImageUpload" class="mt-1 block text-xs text-ink-light file:mr-3 file:py-1 file:px-3 file:rounded file:border file:border-border-ornate file:bg-parchment-dark file:text-ink file:font-heading file:text-xs file:cursor-pointer" />
-    </label>
-
-    <div class="flex gap-2">
+    <!-- Actions -->
+    <div class="flex gap-2 mt-4">
       <button @click="exportPdf" class="btn-blood flex-1 py-3 rounded font-bold text-sm">
-        ⚔ Gerar PDF
+        ⚔ Exportar PDF
       </button>
       <button @click="downloadMarkdown(store.data)" class="flex-1 py-3 rounded font-bold text-sm font-heading uppercase tracking-wider bg-ink/10 border border-border-ornate text-ink hover:bg-ink/20 transition">
         📜 Exportar MD
       </button>
     </div>
-  </section>
+  </div>
 </template>
+
+<style scoped>
+.sheet-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.sheet-page {
+  background: linear-gradient(170deg, #f4e4c1 0%, #e8d4a8 50%, #dcc898 100%);
+  color: #2a1a0a;
+  border: 1px solid #7a6844;
+  border-radius: 4px;
+  padding: 24px 28px;
+  box-shadow:
+    inset 0 0 40px rgba(42, 26, 10, 0.08),
+    0 2px 20px rgba(0, 0, 0, 0.4);
+  position: relative;
+  /* Parchment texture overlay */
+  background-image:
+    url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E"),
+    linear-gradient(170deg, #f4e4c1 0%, #e8d4a8 50%, #dcc898 100%);
+}
+
+.sheet-tab {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 6px 16px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  color: #d4c4a1;
+  transition: all 0.2s;
+  cursor: pointer;
+  background: transparent;
+}
+.sheet-tab:hover { color: #f4e4c1; }
+.sheet-tab-active {
+  background: rgba(184, 148, 62, 0.12);
+}
+
+.sheet-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 2px solid;
+}
+
+.sheet-name {
+  font-family: 'Cinzel', serif;
+  font-size: 22px;
+  font-weight: 900;
+  color: #2a1a0a;
+  letter-spacing: 0.04em;
+  outline: none;
+  border-bottom: 1px solid transparent;
+  line-height: 1.2;
+}
+.sheet-name:hover { border-bottom-color: rgba(106, 90, 58, 0.4); }
+.sheet-name:focus { border-bottom-color: rgba(184, 148, 62, 0.5); }
+
+.sheet-subtitle {
+  font-family: 'Crimson Text', serif;
+  font-size: 12px;
+  color: #5a4a3a;
+  font-style: italic;
+}
+.sheet-sep { margin: 0 4px; opacity: 0.4; }
+.sheet-editable {
+  outline: none;
+  border-bottom: 1px solid transparent;
+}
+.sheet-editable:hover { border-bottom-color: rgba(106, 90, 58, 0.4); }
+.sheet-editable:focus { border-bottom-color: rgba(184, 148, 62, 0.5); }
+
+.sheet-portrait-sm {
+  width: 64px;
+  height: 76px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 2px solid;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.sheet-portrait-lg {
+  width: 180px;
+  height: 220px;
+  border-radius: 4px;
+  border: 2px solid;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  background: rgba(42, 26, 10, 0.05);
+}
+
+.sheet-cr {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  border: 1px solid;
+}
+
+.sheet-ability {
+  text-align: center;
+  border: 1px solid;
+  border-radius: 6px;
+  padding: 6px 2px 4px;
+  background: rgba(42, 26, 10, 0.03);
+}
+.sheet-ability-label {
+  font-family: 'Cinzel', serif;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #5a4a3a;
+}
+.sheet-ability-mod {
+  font-family: 'Cinzel', serif;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+.sheet-ability-score {
+  font-family: 'Crimson Text', serif;
+  font-size: 11px;
+  color: #5a4a3a;
+}
+
+.sheet-stat-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 12px;
+  border: 1px solid rgba(106, 90, 58, 0.35);
+  border-radius: 4px;
+  background: rgba(42, 26, 10, 0.03);
+  min-width: 70px;
+}
+.sheet-stat-hp {
+  background: rgba(122, 32, 16, 0.06);
+  border-color: rgba(122, 32, 16, 0.3);
+}
+.sheet-stat-hp .sheet-stat-value { color: #7a2010; }
+.sheet-stat-label {
+  font-family: 'Cinzel', serif;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #5a4a3a;
+}
+.sheet-stat-value {
+  font-family: 'Cinzel', serif;
+  font-size: 16px;
+  font-weight: 900;
+  color: #2a1a0a;
+}
+
+.sheet-stat-pill {
+  padding: 2px 8px;
+  border: 1px solid;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.sheet-section-title {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #5a4a3a;
+  border-bottom: 1px solid;
+  padding-bottom: 2px;
+  margin-bottom: 6px;
+}
+
+.sheet-skill-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Crimson Text', serif;
+  font-size: 11px;
+  color: #5a4a3a;
+  padding: 1px 0;
+}
+.sheet-skill-prof { color: #2a1a0a; font-weight: 600; }
+.sheet-prof-dot { font-size: 8px; width: 10px; text-align: center; }
+.sheet-skill-mod { width: 22px; text-align: right; font-weight: 700; font-size: 10px; }
+.sheet-skill-name { font-size: 10px; }
+
+.sheet-attack-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Crimson Text', serif;
+  font-size: 11px;
+  color: #2a1a0a;
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(106, 90, 58, 0.15);
+}
+.sheet-attack-bonus {
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.sheet-spell-summary {
+  display: flex;
+  gap: 10px;
+  padding: 4px 8px;
+  border: 1px solid;
+  border-radius: 4px;
+  font-family: 'Crimson Text', serif;
+  font-size: 11px;
+}
+
+.sheet-tag {
+  font-family: 'Crimson Text', serif;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(42, 26, 10, 0.05);
+  border: 1px solid rgba(106, 90, 58, 0.25);
+  color: #2a1a0a;
+}
+
+.sheet-feature {
+  padding: 4px 6px;
+  border-radius: 3px;
+  background: rgba(42, 26, 10, 0.03);
+  border: 1px solid rgba(106, 90, 58, 0.15);
+}
+
+.sheet-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 10px;
+  border: 1px solid;
+  border-radius: 4px;
+  background: rgba(42, 26, 10, 0.03);
+}
+.sheet-slot-level {
+  font-family: 'Cinzel', serif;
+  font-size: 9px;
+  color: #5a4a3a;
+}
+.sheet-slot-count {
+  font-family: 'Cinzel', serif;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.sheet-spell-tag {
+  font-family: 'Crimson Text', serif;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid;
+  color: #2a1a0a;
+}
+</style>
