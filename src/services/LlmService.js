@@ -1,8 +1,10 @@
 /**
- * Serviço de geração via Gemini Flash 2.5.
- * Suporta geração de PCs e NPCs.
+ * Serviço de geração via LLM — suporta Gemini e Groq.
  * Usa regras do Player's Handbook 2024 (D&D 5.5).
+ * Provider selecionado via VITE_LLM_PROVIDER (gemini | groq).
  */
+
+import { validateSpells } from './Dnd5eApi.js'
 
 const BASE_SCHEMA = `{
   "name": "string",
@@ -61,6 +63,8 @@ NPCs can be any CR — commoners, merchants, villains, monsters with humanoid st
 If an image is provided, use it as visual reference.
 The "theme" should reflect the NPC's role and personality.`
 
+// ── Gemini ──
+
 async function callGemini(systemPrompt, userPrompt, imageBase64) {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY
   if (!apiKey) throw new Error('VITE_GEMINI_API_KEY não configurada no .env')
@@ -93,10 +97,83 @@ async function callGemini(systemPrompt, userPrompt, imageBase64) {
   return JSON.parse(json.candidates[0].content.parts[0].text)
 }
 
-export function generateCharacterFromPrompt(userPrompt, imageBase64 = null) {
-  return callGemini(PC_PROMPT, userPrompt, imageBase64)
+// ── Groq ──
+
+async function callGroq(systemPrompt, userPrompt, imageBase64) {
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY
+  if (!apiKey) throw new Error('VITE_GROQ_API_KEY não configurada no .env')
+
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: imageBase64
+      ? [{ type: 'text', text: userPrompt }, { type: 'image_url', image_url: { url: imageBase64 } }]
+      : userPrompt
+    },
+  ]
+
+  const model = imageBase64
+    ? 'meta-llama/llama-4-scout-17b-16e-instruct'
+    : 'llama-3.3-70b-versatile'
+
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      response_format: { type: 'json_object' },
+      temperature: 0.8,
+    }),
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error?.message ?? `Groq API error ${res.status}`)
+  }
+
+  const json = await res.json()
+  return JSON.parse(json.choices[0].message.content)
 }
 
-export function generateNpcFromPrompt(userPrompt, imageBase64 = null) {
-  return callGemini(NPC_PROMPT, userPrompt, imageBase64)
+// ── Router ──
+
+function getProvider() {
+  return (import.meta.env.VITE_LLM_PROVIDER || 'gemini').toLowerCase()
+}
+
+async function callLlm(systemPrompt, userPrompt, imageBase64) {
+  const provider = getProvider()
+  if (provider === 'groq') return callGroq(systemPrompt, userPrompt, imageBase64)
+  return callGemini(systemPrompt, userPrompt, imageBase64)
+}
+
+/** Enriquece spells com dados do SRD (validação via dnd5eapi.co). */
+async function enrichSpells(character) {
+  if (!character.spells?.length) return character
+  const validated = await validateSpells(character.spells)
+  character.spells = validated.map(s => ({
+    name: s.name,
+    level: s.level,
+    ...(s.school && { school: s.school }),
+    ...(s.castingTime && { castingTime: s.castingTime }),
+    ...(s.range && { range: s.range }),
+    ...(s.duration && { duration: s.duration }),
+    ...(s.concentration !== undefined && { concentration: s.concentration }),
+    ...(s.description && { description: s.description }),
+    valid: s.valid,
+  }))
+  return character
+}
+
+export async function generateCharacterFromPrompt(userPrompt, imageBase64 = null) {
+  const raw = await callLlm(PC_PROMPT, userPrompt, imageBase64)
+  return enrichSpells(raw)
+}
+
+export async function generateNpcFromPrompt(userPrompt, imageBase64 = null) {
+  const raw = await callLlm(NPC_PROMPT, userPrompt, imageBase64)
+  return enrichSpells(raw)
 }
