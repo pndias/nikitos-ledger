@@ -1,9 +1,10 @@
 /**
  * Dnd5eApi — valida e enriquece dados usando a API pública dnd5eapi.co (SRD).
  * Sem autenticação, sem limites rígidos, totalmente gratuita.
+ * Usa o SRD 2024 (D&D 5.5).
  */
 
-const BASE = 'https://www.dnd5eapi.co/api/2014'
+const BASE = 'https://www.dnd5eapi.co/api'
 const cache = new Map()
 
 async function fetchJson(path) {
