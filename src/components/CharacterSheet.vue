@@ -285,7 +285,7 @@ const saveKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
       <button @click="exportPdf" class="btn-blood flex-1 py-3 rounded font-bold text-sm">
         ⚔ Exportar PDF
       </button>
-      <button @click="downloadMarkdown(store.data)" class="flex-1 py-3 rounded font-bold text-sm font-heading uppercase tracking-wider bg-ink/10 border border-border-ornate text-ink hover:bg-ink/20 transition">
+      <button @click="downloadMarkdown(store.data)" class="btn-arcane flex-1 py-3 rounded font-bold text-sm opacity-80 hover:opacity-100">
         📜 Exportar MD
       </button>
     </div>
