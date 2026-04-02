@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Outer circle -->
+  <circle cx="100" cy="100" r="95" stroke="#C7A152" stroke-width="3" fill="#1A1A1A"/>
+  <circle cx="100" cy="100" r="85" stroke="#8B6F4D" stroke-width="1" fill="none"/>
+  <!-- Open book -->
+  <path d="M60 130 L100 120 L140 130 L140 80 L100 70 L60 80 Z" fill="#F4E9D5" stroke="#8B6F4D" stroke-width="1.5"/>
+  <line x1="100" y1="70" x2="100" y2="120" stroke="#8B6F4D" stroke-width="1"/>
+  <!-- Book lines left -->
+  <line x1="70" y1="88" x2="95" y2="82" stroke="#8B6F4D" stroke-width="0.8" opacity="0.5"/>
+  <line x1="70" y1="96" x2="95" y2="90" stroke="#8B6F4D" stroke-width="0.8" opacity="0.5"/>
+  <line x1="70" y1="104" x2="95" y2="98" stroke="#8B6F4D" stroke-width="0.8" opacity="0.5"/>
+  <!-- Book lines right -->
+  <line x1="105" y1="82" x2="130" y2="88" stroke="#8B6F4D" stroke-width="0.8" opacity="0.5"/>
+  <line x1="105" y1="90" x2="130" y2="96" stroke="#8B6F4D" stroke-width="0.8" opacity="0.5"/>
+  <line x1="105" y1="98" x2="130" y2="104" stroke="#8B6F4D" stroke-width="0.8" opacity="0.5"/>
+  <!-- D20 above book -->
+  <polygon points="100,38 118,52 112,72 88,72 82,52" fill="none" stroke="#C7A152" stroke-width="2"/>
+  <text x="100" y="61" text-anchor="middle" font-family="serif" font-size="14" font-weight="bold" fill="#C7A152">20</text>
+  <!-- Stars -->
+  <circle cx="55" cy="55" r="2" fill="#C7A152" opacity="0.6"/>
+  <circle cx="145" cy="55" r="2" fill="#C7A152" opacity="0.6"/>
+  <circle cx="42" cy="100" r="1.5" fill="#C7A152" opacity="0.4"/>
+  <circle cx="158" cy="100" r="1.5" fill="#C7A152" opacity="0.4"/>
+  <!-- Text arc: NIKITO'S -->
+  <text x="100" y="160" text-anchor="middle" font-family="serif" font-size="16" font-weight="bold" fill="#C7A152" letter-spacing="4">NIKITO'S</text>
+  <text x="100" y="178" text-anchor="middle" font-family="serif" font-size="11" fill="#8B6F4D" letter-spacing="6">LEDGER</text>
+</svg>

@@ -63,18 +63,51 @@ NPCs can be any CR — commoners, merchants, villains, monsters with humanoid st
 If an image is provided, use it as visual reference.
 The "theme" should reflect the NPC's role and personality.`
 
-// ── Gemini ──
+// ── LLM call (serverless proxy in prod, direct in local dev) ──
 
-async function callGemini(systemPrompt, userPrompt, imageBase64) {
+async function callLlm(systemPrompt, userPrompt, imageBase64) {
+  if (import.meta.env.PROD || !import.meta.env.VITE_GEMINI_API_KEY) {
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ systemPrompt, userPrompt, imageBase64 }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || `API error ${res.status}`)
+    }
+    return res.json()
+  }
+
+  // Local dev — direct calls with VITE_ keys
+  const provider = (import.meta.env.VITE_LLM_PROVIDER || 'gemini').toLowerCase()
+
+  if (provider === 'groq') {
+    const apiKey = import.meta.env.VITE_GROQ_API_KEY
+    if (!apiKey) throw new Error('VITE_GROQ_API_KEY não configurada no .env')
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: imageBase64
+        ? [{ type: 'text', text: userPrompt }, { type: 'image_url', image_url: { url: imageBase64 } }]
+        : userPrompt },
+    ]
+    const model = imageBase64 ? 'meta-llama/llama-4-scout-17b-16e-instruct' : 'llama-3.3-70b-versatile'
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model, messages, response_format: { type: 'json_object' }, temperature: 0.8 }),
+    })
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error?.message ?? `Groq ${res.status}`) }
+    const json = await res.json()
+    return JSON.parse(json.choices[0].message.content)
+  }
+
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-  if (!apiKey) throw new Error('VITE_GEMINI_API_KEY não configurada no .env')
-
   const parts = [{ text: userPrompt }]
   if (imageBase64) {
     const match = imageBase64.match(/^data:(image\/\w+);base64,(.+)$/)
     if (match) parts.push({ inlineData: { mimeType: match[1], data: match[2] } })
   }
-
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
     {
@@ -87,67 +120,9 @@ async function callGemini(systemPrompt, userPrompt, imageBase64) {
       }),
     }
   )
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.error?.message ?? `Gemini API error ${res.status}`)
-  }
-
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error?.message ?? `Gemini ${res.status}`) }
   const json = await res.json()
   return JSON.parse(json.candidates[0].content.parts[0].text)
-}
-
-// ── Groq ──
-
-async function callGroq(systemPrompt, userPrompt, imageBase64) {
-  const apiKey = import.meta.env.VITE_GROQ_API_KEY
-  if (!apiKey) throw new Error('VITE_GROQ_API_KEY não configurada no .env')
-
-  const messages = [
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: imageBase64
-      ? [{ type: 'text', text: userPrompt }, { type: 'image_url', image_url: { url: imageBase64 } }]
-      : userPrompt
-    },
-  ]
-
-  const model = imageBase64
-    ? 'meta-llama/llama-4-scout-17b-16e-instruct'
-    : 'llama-3.3-70b-versatile'
-
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      response_format: { type: 'json_object' },
-      temperature: 0.8,
-    }),
-  })
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.error?.message ?? `Groq API error ${res.status}`)
-  }
-
-  const json = await res.json()
-  return JSON.parse(json.choices[0].message.content)
-}
-
-// ── Router ──
-
-function getProvider() {
-  return (import.meta.env.VITE_LLM_PROVIDER || 'gemini').toLowerCase()
-}
-
-async function callLlm(systemPrompt, userPrompt, imageBase64) {
-  const provider = getProvider()
-  if (provider === 'groq') return callGroq(systemPrompt, userPrompt, imageBase64)
-  return callGemini(systemPrompt, userPrompt, imageBase64)
 }
 
 /** Enriquece spells com dados do SRD (validação via dnd5eapi.co). */
