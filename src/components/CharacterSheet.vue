@@ -86,7 +86,7 @@ const saveKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
       </div>
 
       <!-- Ability Scores -->
-      <div class="grid grid-cols-6 gap-1.5 my-4">
+      <div class="grid grid-cols-3 sm:grid-cols-6 gap-1.5 my-4">
         <div v-for="k in saveKeys" :key="k" class="sheet-ability" :style="{ borderColor: `${accent}40` }">
           <div class="sheet-ability-label">{{ k }}</div>
           <div class="sheet-ability-mod" :style="{ color: accent }">{{ c.abilities[k]?.display }}</div>
@@ -95,7 +95,7 @@ const saveKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
       </div>
 
       <!-- Combat Row -->
-      <div class="flex flex-wrap gap-1.5 mb-4">
+      <div class="grid grid-cols-3 sm:flex sm:flex-wrap gap-1.5 mb-4">
         <div class="sheet-stat-box sheet-stat-hp">
           <span class="sheet-stat-label">HP</span>
           <span class="sheet-stat-value">{{ c.hp }}</span>
@@ -127,7 +127,7 @@ const saveKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
       </div>
 
       <!-- Two-column: Saves+Skills | Attacks+Equipment -->
-      <div class="grid grid-cols-2 gap-4 mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <!-- Left: Saving Throws + Skills -->
         <div>
           <h3 class="sheet-section-title" :style="{ borderColor: accent }">Saving Throws</h3>
@@ -183,7 +183,7 @@ const saveKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
       <!-- Features & Traits -->
       <div class="mb-4">
         <h3 class="sheet-section-title" :style="{ borderColor: accent }">Habilidades & Traços</h3>
-        <div class="grid grid-cols-2 gap-2">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <div v-for="f in [...(c.features || []), ...(c.traits || [])]" :key="f.name" class="sheet-feature">
             <p class="font-bold text-ink text-[11px]">{{ f.name }}</p>
             <p class="text-ink-light text-[10px] italic leading-tight">{{ f.description }}</p>
@@ -195,7 +195,7 @@ const saveKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
     <!-- ═══════════ PAGE 2: PROFILE ═══════════ -->
     <div v-show="page === 2" class="sheet-page">
       <!-- Portrait large -->
-      <div class="flex gap-6 mb-4">
+      <div class="flex flex-col-reverse sm:flex-row gap-4 sm:gap-6 mb-4">
         <div class="flex-1">
           <h3 class="sheet-section-title" :style="{ borderColor: accent }">Personalidade</h3>
           <div class="space-y-2 text-xs font-body text-ink">
@@ -205,7 +205,7 @@ const saveKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
             <p v-if="c.flaws"><span class="font-bold">Fraquezas:</span> {{ c.flaws }}</p>
           </div>
         </div>
-        <div class="shrink-0">
+        <div class="shrink-0 self-center sm:self-start">
           <div class="sheet-portrait-lg" :style="{ borderColor: accent }">
             <img v-if="store.imageBase64" :src="store.imageBase64" class="w-full h-full object-cover" alt="Portrait" />
             <label v-else class="flex flex-col items-center justify-center h-full cursor-pointer text-ink-light hover:text-ink transition">
@@ -220,12 +220,12 @@ const saveKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
       <!-- NPC Roleplaying -->
       <div v-if="isNpc && c.roleplaying" class="mb-4 p-3 rounded border border-dashed" :style="{ borderColor: `${accent}50`, background: `${accent}06` }">
         <h3 class="sheet-section-title" :style="{ borderColor: accent }">🎭 Interpretação (DM)</h3>
-        <div class="grid grid-cols-2 gap-2 text-xs font-body text-ink">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-body text-ink">
           <p v-if="c.roleplaying.voice"><span class="font-bold">Voz:</span> {{ c.roleplaying.voice }}</p>
           <p v-if="c.roleplaying.mannerisms"><span class="font-bold">Maneirismos:</span> {{ c.roleplaying.mannerisms }}</p>
           <p v-if="c.roleplaying.ideals"><span class="font-bold">Ideais:</span> {{ c.roleplaying.ideals }}</p>
           <p v-if="c.roleplaying.bonds"><span class="font-bold">Vínculos:</span> {{ c.roleplaying.bonds }}</p>
-          <p v-if="c.roleplaying.flaws" class="col-span-2"><span class="font-bold">Fraquezas:</span> {{ c.roleplaying.flaws }}</p>
+          <p v-if="c.roleplaying.flaws" class="sm:col-span-2"><span class="font-bold">Fraquezas:</span> {{ c.roleplaying.flaws }}</p>
         </div>
       </div>
 
@@ -245,9 +245,9 @@ const saveKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
     <!-- ═══════════ PAGE 3: SPELLS ═══════════ -->
     <div v-show="page === 3 && !isNpc" class="sheet-page">
       <div v-if="c.spellcasting" class="mb-4">
-        <div class="flex items-center gap-4 mb-3">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mb-3">
           <h3 class="sheet-section-title mb-0" :style="{ borderColor: accent }">Conjuração</h3>
-          <div class="flex gap-2 text-xs font-heading">
+          <div class="flex flex-wrap gap-2 text-xs font-heading">
             <span class="sheet-stat-pill" :style="{ borderColor: `${accent}40`, color: accent }">Habilidade: {{ c.spellcasting.ability.toUpperCase() }}</span>
             <span class="sheet-stat-pill" :style="{ borderColor: `${accent}40`, color: accent }">DC {{ c.spellcasting.saveDC }}</span>
             <span class="sheet-stat-pill" :style="{ borderColor: `${accent}40`, color: accent }">Atk {{ c.spellcasting.attackBonusDisplay }}</span>
@@ -299,74 +299,85 @@ const saveKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
 }
 
 .sheet-page {
-  background: linear-gradient(170deg, #f4e4c1 0%, #e8d4a8 50%, #dcc898 100%);
-  color: #2a1a0a;
-  border: 1px solid #7a6844;
+  background: linear-gradient(170deg, #F4E9D5 0%, #e8dcc0 50%, #ddd0b0 100%);
+  color: #333333;
+  border: 1px solid #8B6F4D;
   border-radius: 4px;
-  padding: 24px 28px;
+  padding: 16px 14px;
   box-shadow:
-    inset 0 0 40px rgba(42, 26, 10, 0.08),
+    inset 0 0 40px rgba(51, 51, 51, 0.06),
     0 2px 20px rgba(0, 0, 0, 0.4);
   position: relative;
-  /* Parchment texture overlay */
   background-image:
     url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E"),
-    linear-gradient(170deg, #f4e4c1 0%, #e8d4a8 50%, #dcc898 100%);
+    linear-gradient(170deg, #F4E9D5 0%, #e8dcc0 50%, #ddd0b0 100%);
+}
+@media (min-width: 640px) {
+  .sheet-page { padding: 24px 28px; }
 }
 
 .sheet-tab {
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel Decorative', serif;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   padding: 6px 16px;
   border-radius: 4px;
   border: 1px solid transparent;
-  color: #d4c4a1;
+  color: #8B6F4D;
   transition: all 0.2s;
   cursor: pointer;
   background: transparent;
 }
-.sheet-tab:hover { color: #f4e4c1; }
+.sheet-tab:hover { color: #F4E9D5; }
 .sheet-tab-active {
-  background: rgba(184, 148, 62, 0.12);
+  background: rgba(199, 161, 82, 0.12);
 }
 
 .sheet-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
-  gap: 12px;
+  gap: 8px;
   padding-bottom: 12px;
   margin-bottom: 4px;
   border-bottom: 2px solid;
 }
 
 .sheet-name {
-  font-family: 'Cinzel', serif;
-  font-size: 22px;
-  font-weight: 900;
-  color: #2a1a0a;
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #333333;
   letter-spacing: 0.04em;
   outline: none;
   border-bottom: 1px solid transparent;
   line-height: 1.2;
 }
-.sheet-name:hover { border-bottom-color: rgba(106, 90, 58, 0.4); }
-.sheet-name:focus { border-bottom-color: rgba(184, 148, 62, 0.5); }
+@media (min-width: 640px) {
+  .sheet-header { gap: 12px; flex-wrap: nowrap; }
+  .sheet-name { font-size: 22px; }
+}
+.sheet-name:hover { border-bottom-color: rgba(139, 111, 77, 0.4); }
+.sheet-name:focus { border-bottom-color: rgba(199, 161, 82, 0.5); }
 
 .sheet-subtitle {
-  font-family: 'Crimson Text', serif;
-  font-size: 12px;
-  color: #5a4a3a;
+  font-family: 'Merriweather', serif;
+  font-size: 11px;
+  color: #8B6F4D;
   font-style: italic;
+  line-height: 1.6;
+}
+@media (min-width: 640px) {
+  .sheet-subtitle { font-size: 12px; }
 }
 .sheet-sep { margin: 0 4px; opacity: 0.4; }
 .sheet-editable {
   outline: none;
   border-bottom: 1px solid transparent;
 }
-.sheet-editable:hover { border-bottom-color: rgba(106, 90, 58, 0.4); }
-.sheet-editable:focus { border-bottom-color: rgba(184, 148, 62, 0.5); }
+.sheet-editable:hover { border-bottom-color: rgba(139, 111, 77, 0.4); }
+.sheet-editable:focus { border-bottom-color: rgba(199, 161, 82, 0.5); }
 
 .sheet-portrait-sm {
   width: 64px;
@@ -378,13 +389,16 @@ const saveKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
 }
 
 .sheet-portrait-lg {
-  width: 180px;
-  height: 220px;
+  width: 140px;
+  height: 170px;
   border-radius: 4px;
   border: 2px solid;
   overflow: hidden;
   box-shadow: 0 2px 12px rgba(0,0,0,0.3);
-  background: rgba(42, 26, 10, 0.05);
+  background: rgba(51, 51, 51, 0.05);
+}
+@media (min-width: 640px) {
+  .sheet-portrait-lg { width: 180px; height: 220px; }
 }
 
 .sheet-cr {
@@ -393,7 +407,7 @@ const saveKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
   right: 8px;
   padding: 2px 10px;
   border-radius: 4px;
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel Decorative', serif;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -405,54 +419,57 @@ const saveKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
   border: 1px solid;
   border-radius: 6px;
   padding: 6px 2px 4px;
-  background: rgba(42, 26, 10, 0.03);
+  background: rgba(51, 51, 51, 0.03);
 }
 .sheet-ability-label {
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel Decorative', serif;
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.15em;
-  color: #5a4a3a;
+  color: #8B6F4D;
 }
 .sheet-ability-mod {
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel Decorative', serif;
   font-size: 20px;
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1.2;
 }
 .sheet-ability-score {
-  font-family: 'Crimson Text', serif;
+  font-family: 'Merriweather', serif;
   font-size: 11px;
-  color: #5a4a3a;
+  color: #8B6F4D;
 }
 
 .sheet-stat-box {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 6px 12px;
-  border: 1px solid rgba(106, 90, 58, 0.35);
+  padding: 4px 6px;
+  border: 1px solid rgba(139, 111, 77, 0.35);
   border-radius: 4px;
-  background: rgba(42, 26, 10, 0.03);
-  min-width: 70px;
+  background: rgba(51, 51, 51, 0.03);
+  min-width: 0;
+}
+@media (min-width: 640px) {
+  .sheet-stat-box { padding: 6px 12px; min-width: 70px; }
 }
 .sheet-stat-hp {
-  background: rgba(122, 32, 16, 0.06);
-  border-color: rgba(122, 32, 16, 0.3);
+  background: rgba(160, 59, 49, 0.06);
+  border-color: rgba(160, 59, 49, 0.3);
 }
-.sheet-stat-hp .sheet-stat-value { color: #7a2010; }
+.sheet-stat-hp .sheet-stat-value { color: #A03B31; }
 .sheet-stat-label {
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel Decorative', serif;
   font-size: 8px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #5a4a3a;
+  color: #8B6F4D;
 }
 .sheet-stat-value {
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel Decorative', serif;
   font-size: 16px;
-  font-weight: 900;
-  color: #2a1a0a;
+  font-weight: 700;
+  color: #333333;
 }
 
 .sheet-stat-pill {
@@ -464,11 +481,11 @@ const saveKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
 }
 
 .sheet-section-title {
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel Decorative', serif;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.15em;
-  color: #5a4a3a;
+  color: #A03B31;
   border-bottom: 1px solid;
   padding-bottom: 2px;
   margin-bottom: 6px;
@@ -478,12 +495,12 @@ const saveKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
   display: flex;
   align-items: center;
   gap: 4px;
-  font-family: 'Crimson Text', serif;
+  font-family: 'Merriweather', serif;
   font-size: 11px;
-  color: #5a4a3a;
+  color: #8B6F4D;
   padding: 1px 0;
 }
-.sheet-skill-prof { color: #2a1a0a; font-weight: 600; }
+.sheet-skill-prof { color: #333333; font-weight: 600; }
 .sheet-prof-dot { font-size: 8px; width: 10px; text-align: center; }
 .sheet-skill-mod { width: 22px; text-align: right; font-weight: 700; font-size: 10px; }
 .sheet-skill-name { font-size: 10px; }
@@ -492,11 +509,11 @@ const saveKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
   display: flex;
   align-items: center;
   gap: 6px;
-  font-family: 'Crimson Text', serif;
+  font-family: 'Merriweather', serif;
   font-size: 11px;
-  color: #2a1a0a;
+  color: #333333;
   padding: 2px 0;
-  border-bottom: 1px solid rgba(106, 90, 58, 0.15);
+  border-bottom: 1px solid rgba(139, 111, 77, 0.15);
 }
 .sheet-attack-bonus {
   font-weight: 700;
@@ -509,25 +526,25 @@ const saveKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
   padding: 4px 8px;
   border: 1px solid;
   border-radius: 4px;
-  font-family: 'Crimson Text', serif;
+  font-family: 'Merriweather', serif;
   font-size: 11px;
 }
 
 .sheet-tag {
-  font-family: 'Crimson Text', serif;
+  font-family: 'Merriweather', serif;
   font-size: 10px;
   padding: 1px 6px;
   border-radius: 3px;
-  background: rgba(42, 26, 10, 0.05);
-  border: 1px solid rgba(106, 90, 58, 0.25);
-  color: #2a1a0a;
+  background: rgba(51, 51, 51, 0.05);
+  border: 1px solid rgba(139, 111, 77, 0.25);
+  color: #333333;
 }
 
 .sheet-feature {
   padding: 4px 6px;
   border-radius: 3px;
-  background: rgba(42, 26, 10, 0.03);
-  border: 1px solid rgba(106, 90, 58, 0.15);
+  background: rgba(51, 51, 51, 0.03);
+  border: 1px solid rgba(139, 111, 77, 0.15);
 }
 
 .sheet-slot {
@@ -537,25 +554,25 @@ const saveKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha']
   padding: 4px 10px;
   border: 1px solid;
   border-radius: 4px;
-  background: rgba(42, 26, 10, 0.03);
+  background: rgba(51, 51, 51, 0.03);
 }
 .sheet-slot-level {
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel Decorative', serif;
   font-size: 9px;
-  color: #5a4a3a;
+  color: #8B6F4D;
 }
 .sheet-slot-count {
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel Decorative', serif;
   font-size: 16px;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .sheet-spell-tag {
-  font-family: 'Crimson Text', serif;
+  font-family: 'Merriweather', serif;
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 3px;
   border: 1px solid;
-  color: #2a1a0a;
+  color: #333333;
 }
 </style>

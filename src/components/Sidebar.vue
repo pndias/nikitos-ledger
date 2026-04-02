@@ -3,28 +3,34 @@ import { useCharacterStore } from '../stores/character'
 
 const store = useCharacterStore()
 
-defineProps({ collapsed: Boolean })
-defineEmits(['toggle'])
+defineProps({ collapsed: Boolean, mobileOpen: Boolean })
+defineEmits(['toggle', 'closeMobile'])
+
+function select(char) {
+  store.selectCharacter(char)
+}
 </script>
 
 <template>
   <aside
     :class="[
       'h-screen flex flex-col border-r border-border-ornate bg-bg-panel transition-all duration-300',
-      collapsed ? 'w-16' : 'w-64'
+      'fixed z-50 md:relative',
+      mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+      collapsed ? 'w-64 md:w-16' : 'w-64'
     ]"
   >
     <!-- Toggle -->
     <div class="flex items-center justify-between p-4">
-      <span v-if="!collapsed" class="font-heading text-gold text-sm tracking-wider uppercase">Ledger</span>
-      <button @click="$emit('toggle')" class="text-parchment-dark hover:text-gold transition text-lg">
-        {{ collapsed ? '☰' : '✕' }}
+      <span v-if="!collapsed || mobileOpen" class="font-heading text-gold text-sm tracking-wider uppercase">Ledger</span>
+      <button @click="mobileOpen ? $emit('closeMobile') : $emit('toggle')" class="text-parchment-dark hover:text-gold transition text-lg">
+        {{ (collapsed && !mobileOpen) ? '☰' : '✕' }}
       </button>
     </div>
     <div class="gold-rule mx-3"></div>
 
     <!-- Mode switch -->
-    <div v-if="!collapsed" class="flex gap-1 p-3">
+    <div v-if="!collapsed || mobileOpen" class="flex gap-1 p-3">
       <button
         v-for="m in [{ key: 'pc', label: '⚔ PCs' }, { key: 'npc', label: '👤 NPCs' }]"
         :key="m.key"
@@ -37,8 +43,7 @@ defineEmits(['toggle'])
     </div>
 
     <!-- Character list -->
-    <nav v-if="!collapsed" class="flex-1 overflow-y-auto px-3 space-y-1">
-      <!-- PCs section -->
+    <nav v-if="!collapsed || mobileOpen" class="flex-1 overflow-y-auto px-3 space-y-1">
       <template v-if="store.mode === 'pc'">
         <p class="text-[10px] font-heading text-border-ornate uppercase tracking-widest mt-2 mb-1 px-1">Jogadores</p>
         <div v-if="!store.pcs.length" class="text-ink-light text-xs italic text-center mt-4 px-2">
@@ -47,7 +52,7 @@ defineEmits(['toggle'])
         <button
           v-for="char in store.pcs"
           :key="char.name"
-          @click="store.selectCharacter(char)"
+          @click="select(char); $emit('closeMobile')"
           :class="[
             'w-full text-left px-3 py-2 rounded transition text-sm',
             store.data === char ? 'bg-bg-panel-light border border-gold/20' : 'hover:bg-bg-panel-light'
@@ -63,7 +68,6 @@ defineEmits(['toggle'])
         </button>
       </template>
 
-      <!-- NPCs section -->
       <template v-else>
         <p class="text-[10px] font-heading text-border-ornate uppercase tracking-widest mt-2 mb-1 px-1">NPCs do Mestre</p>
         <div v-if="!store.npcs.length" class="text-ink-light text-xs italic text-center mt-4 px-2">
@@ -72,7 +76,7 @@ defineEmits(['toggle'])
         <button
           v-for="char in store.npcs"
           :key="char.name"
-          @click="store.selectCharacter(char)"
+          @click="select(char); $emit('closeMobile')"
           :class="[
             'w-full text-left px-3 py-2 rounded transition text-sm',
             store.data === char ? 'bg-bg-panel-light border border-gold/20' : 'hover:bg-bg-panel-light'
@@ -90,7 +94,7 @@ defineEmits(['toggle'])
     </nav>
 
     <!-- Footer -->
-    <div v-if="!collapsed" class="p-4 border-t border-border-ornate">
+    <div v-if="!collapsed || mobileOpen" class="p-4 border-t border-border-ornate">
       <p class="text-border-ornate text-[10px] font-heading tracking-wider text-center">Nikito's Ledger · by El Brujo Tapuya</p>
     </div>
   </aside>

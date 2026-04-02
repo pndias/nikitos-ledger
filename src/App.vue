@@ -6,15 +6,30 @@ import CharacterSheet from './components/CharacterSheet.vue'
 import { useCharacterStore } from './stores/character'
 
 const store = useCharacterStore()
-const sidebarCollapsed = ref(false)
+const sidebarCollapsed = ref(true)
+const sidebarOpen = ref(false)
 </script>
 
 <template>
   <div class="flex h-screen overflow-hidden font-body text-parchment">
-    <Sidebar :collapsed="sidebarCollapsed" @toggle="sidebarCollapsed = !sidebarCollapsed" />
+    <!-- Mobile overlay -->
+    <div v-if="sidebarOpen" class="fixed inset-0 bg-black/60 z-40 md:hidden" @click="sidebarOpen = false" />
 
-    <main class="flex-1 flex flex-col overflow-y-auto">
-      <div class="flex-1 flex flex-col justify-center px-6 py-8">
+    <Sidebar
+      :collapsed="sidebarCollapsed"
+      :mobile-open="sidebarOpen"
+      @toggle="sidebarCollapsed = !sidebarCollapsed"
+      @close-mobile="sidebarOpen = false"
+    />
+
+    <main class="flex-1 flex flex-col overflow-y-auto min-w-0">
+      <!-- Mobile top bar -->
+      <div class="flex items-center gap-3 p-3 md:hidden border-b border-border-ornate bg-bg-panel">
+        <button @click="sidebarOpen = true" class="text-parchment-dark hover:text-gold text-lg">☰</button>
+        <span class="font-heading text-gold text-sm tracking-wider uppercase">Ledger</span>
+      </div>
+
+      <div class="flex-1 flex flex-col justify-center px-3 py-4 sm:px-6 sm:py-8">
         <div v-if="store.data" class="max-w-4xl w-full mx-auto mb-8">
           <CharacterSheet />
         </div>
