@@ -30,8 +30,11 @@ const sidebarOpen = ref(false)
       </div>
 
       <div class="flex-1 flex flex-col justify-center px-3 py-4 sm:px-6 sm:py-8">
-        <div v-if="store.data" class="max-w-4xl w-full mx-auto mb-8">
-          <CharacterSheet />
+        <div v-if="store.data" class="max-w-4xl w-full mx-auto">
+          <button @click="store.goHome()" class="flex items-center gap-1 text-parchment-dark hover:text-gold transition text-xs font-heading tracking-wider mb-3">
+            ← Voltar ao Início
+          </button>
+          <CharacterSheet class="mb-8" />
         </div>
         <div :class="store.data ? 'max-w-4xl w-full mx-auto' : ''">
           <PromptInput />

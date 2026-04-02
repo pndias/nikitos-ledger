@@ -60,7 +60,7 @@ const placeholders = {
   <div class="w-full max-w-3xl mx-auto">
     <!-- Welcome -->
     <div v-if="!store.data && !store.loading" class="text-center mb-8 sm:mb-12">
-      <img src="/logo.svg" alt="Nikito's Ledger" class="w-40 h-40 sm:w-56 sm:h-56 mx-auto mb-4" />
+      <img src="/logo.png" alt="Nikito's Ledger" class="w-40 h-40 sm:w-56 sm:h-56 mx-auto mb-4" />
       <h1 class="font-display text-2xl sm:text-4xl md:text-5xl font-bold text-gold tracking-widest mb-3" style="text-shadow: 1px 1px 0 #8B6F4D;">Nikito's Ledger</h1>
       <div class="gold-rule max-w-sm mx-auto mb-3"></div>
       <p class="text-parchment-dark font-heading text-xs sm:text-sm tracking-wider">
