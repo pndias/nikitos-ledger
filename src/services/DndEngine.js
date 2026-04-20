@@ -1,6 +1,9 @@
 /**
- * Motor de regras D&D 5.5 — calcula todos os valores derivados.
+ * Motor de regras D&D 2024 PHB (5.5e) — calcula todos os valores derivados.
+ * Weapon data loaded from 5etools at runtime; static fallback for offline.
  */
+
+import { getWeapon } from './Dnd5eData.js'
 
 const ABILITY_KEYS = ['str', 'dex', 'con', 'int', 'wis', 'cha']
 
@@ -14,7 +17,7 @@ const SKILL_MAP = {
 }
 
 const SPELLCASTING_ABILITY = {
-  'Wizard': 'int', 'Artificer': 'int',
+  'Wizard': 'int',
   'Cleric': 'wis', 'Druid': 'wis', 'Ranger': 'wis', 'Monk': 'wis',
   'Bard': 'cha', 'Paladin': 'cha', 'Sorcerer': 'cha', 'Warlock': 'cha',
 }
@@ -22,79 +25,34 @@ const SPELLCASTING_ABILITY = {
 const HIT_DIE = {
   'Barbarian': 12, 'Fighter': 10, 'Paladin': 10, 'Ranger': 10,
   'Bard': 8, 'Cleric': 8, 'Druid': 8, 'Monk': 8, 'Rogue': 8, 'Warlock': 8,
-  'Sorcerer': 6, 'Wizard': 6, 'Artificer': 8,
+  'Sorcerer': 6, 'Wizard': 6,
 }
 
-// Spell slots by caster level (full casters)
+// PHB 2024 spell slots by caster level (full casters)
 const SPELL_SLOTS = [
-  //        1  2  3  4  5  6  7  8  9
-  /* 0 */ [],
-  /* 1 */ [2],
-  /* 2 */ [3],
-  /* 3 */ [4,2],
-  /* 4 */ [4,3],
-  /* 5 */ [4,3,2],
-  /* 6 */ [4,3,3],
-  /* 7 */ [4,3,3,1],
-  /* 8 */ [4,3,3,2],
-  /* 9 */ [4,3,3,3,1],
-  /*10 */ [4,3,3,3,2],
-  /*11 */ [4,3,3,3,2,1],
-  /*12 */ [4,3,3,3,2,1],
-  /*13 */ [4,3,3,3,2,1,1],
-  /*14 */ [4,3,3,3,2,1,1],
-  /*15 */ [4,3,3,3,2,1,1,1],
-  /*16 */ [4,3,3,3,2,1,1,1],
-  /*17 */ [4,3,3,3,2,1,1,1,1],
-  /*18 */ [4,3,3,3,3,1,1,1,1],
-  /*19 */ [4,3,3,3,3,2,1,1,1],
-  /*20 */ [4,3,3,3,3,2,2,1,1],
+  [],
+  [2],[3],[4,2],[4,3],[4,3,2],[4,3,3],[4,3,3,1],[4,3,3,2],[4,3,3,3,1],[4,3,3,3,2],
+  [4,3,3,3,2,1],[4,3,3,3,2,1],[4,3,3,3,2,1,1],[4,3,3,3,2,1,1],[4,3,3,3,2,1,1,1],
+  [4,3,3,3,2,1,1,1],[4,3,3,3,2,1,1,1,1],[4,3,3,3,3,1,1,1,1],[4,3,3,3,3,2,1,1,1],[4,3,3,3,3,2,2,1,1],
+]
+
+// PHB 2024 Warlock Pact Magic: slots per level, slot level
+const PACT_MAGIC = [
+  null,
+  { slots: 1, level: 1 }, { slots: 2, level: 1 },
+  { slots: 2, level: 2 }, { slots: 2, level: 2 },
+  { slots: 2, level: 3 }, { slots: 2, level: 3 },
+  { slots: 2, level: 4 }, { slots: 2, level: 4 },
+  { slots: 2, level: 5 }, { slots: 2, level: 5 },
+  { slots: 3, level: 5 }, { slots: 3, level: 5 },
+  { slots: 3, level: 5 }, { slots: 3, level: 5 },
+  { slots: 3, level: 5 }, { slots: 3, level: 5 },
+  { slots: 4, level: 5 }, { slots: 4, level: 5 },
+  { slots: 4, level: 5 }, { slots: 4, level: 5 },
 ]
 
 const FULL_CASTERS = ['Bard', 'Cleric', 'Druid', 'Sorcerer', 'Wizard']
-const HALF_CASTERS = ['Paladin', 'Ranger', 'Artificer']
-
-// Weapon data for attack/damage calculation
-const WEAPON_DATA = {
-  'Club': { die: '1d4', type: 'B', ability: 'str', finesse: false },
-  'Dagger': { die: '1d4', type: 'P', ability: 'str', finesse: true },
-  'Greatclub': { die: '1d8', type: 'B', ability: 'str', finesse: false },
-  'Handaxe': { die: '1d6', type: 'S', ability: 'str', finesse: false },
-  'Javelin': { die: '1d6', type: 'P', ability: 'str', finesse: false, range: '30/120' },
-  'Light Hammer': { die: '1d4', type: 'B', ability: 'str', finesse: false },
-  'Mace': { die: '1d6', type: 'B', ability: 'str', finesse: false },
-  'Quarterstaff': { die: '1d6', type: 'B', ability: 'str', finesse: false },
-  'Sickle': { die: '1d4', type: 'S', ability: 'str', finesse: false },
-  'Spear': { die: '1d6', type: 'P', ability: 'str', finesse: false, range: '20/60' },
-  'Dart': { die: '1d4', type: 'P', ability: 'dex', finesse: true, range: '20/60' },
-  'Light Crossbow': { die: '1d8', type: 'P', ability: 'dex', finesse: false, range: '80/320' },
-  'Shortbow': { die: '1d6', type: 'P', ability: 'dex', finesse: false, range: '80/320' },
-  'Sling': { die: '1d4', type: 'B', ability: 'dex', finesse: false, range: '30/120' },
-  'Battleaxe': { die: '1d8', type: 'S', ability: 'str', finesse: false },
-  'Flail': { die: '1d8', type: 'B', ability: 'str', finesse: false },
-  'Glaive': { die: '1d10', type: 'S', ability: 'str', finesse: false },
-  'Greataxe': { die: '1d12', type: 'S', ability: 'str', finesse: false },
-  'Greatsword': { die: '2d6', type: 'S', ability: 'str', finesse: false },
-  'Halberd': { die: '1d10', type: 'S', ability: 'str', finesse: false },
-  'Lance': { die: '1d10', type: 'P', ability: 'str', finesse: false },
-  'Longsword': { die: '1d8', type: 'S', ability: 'str', finesse: false },
-  'Maul': { die: '2d6', type: 'B', ability: 'str', finesse: false },
-  'Morningstar': { die: '1d8', type: 'P', ability: 'str', finesse: false },
-  'Pike': { die: '1d10', type: 'P', ability: 'str', finesse: false },
-  'Rapier': { die: '1d8', type: 'P', ability: 'str', finesse: true },
-  'Scimitar': { die: '1d6', type: 'S', ability: 'str', finesse: true },
-  'Shortsword': { die: '1d6', type: 'P', ability: 'str', finesse: true },
-  'Trident': { die: '1d8', type: 'P', ability: 'str', finesse: false, range: '20/60' },
-  'Warhammer': { die: '1d8', type: 'B', ability: 'str', finesse: false },
-  'War Pick': { die: '1d8', type: 'P', ability: 'str', finesse: false },
-  'Whip': { die: '1d4', type: 'S', ability: 'str', finesse: true },
-  'Blowgun': { die: '1', type: 'P', ability: 'dex', finesse: false, range: '25/100' },
-  'Hand Crossbow': { die: '1d6', type: 'P', ability: 'dex', finesse: false, range: '30/120' },
-  'Heavy Crossbow': { die: '1d10', type: 'P', ability: 'dex', finesse: false, range: '100/400' },
-  'Longbow': { die: '1d8', type: 'P', ability: 'dex', finesse: false, range: '150/600' },
-  'Musket': { die: '1d12', type: 'P', ability: 'dex', finesse: false, range: '40/120' },
-  'Pistol': { die: '1d10', type: 'P', ability: 'dex', finesse: false, range: '30/90' },
-}
+const HALF_CASTERS = ['Paladin', 'Ranger']
 
 export function mod(score) {
   return Math.floor((score - 10) / 2)
@@ -109,37 +67,90 @@ export function fmtMod(val) {
 }
 
 function computeSpellSlots(classes) {
+  // Check for pure Warlock → Pact Magic
+  const isOnlyWarlock = classes.length === 1 && classes[0].name === 'Warlock'
+  if (isOnlyWarlock) {
+    const pm = PACT_MAGIC[Math.min(classes[0].level, 20)]
+    if (!pm) return []
+    const slots = new Array(9).fill(0)
+    slots[pm.level - 1] = pm.slots
+    return slots
+  }
+
   let casterLevel = 0
   for (const cl of classes) {
+    if (cl.name === 'Warlock') continue // Warlock doesn't contribute to multiclass spell slots
     if (FULL_CASTERS.includes(cl.name)) casterLevel += cl.level
     else if (HALF_CASTERS.includes(cl.name)) casterLevel += Math.floor(cl.level / 2)
   }
   return SPELL_SLOTS[Math.min(casterLevel, 20)] || []
 }
 
-function computeWeapons(rawWeapons, abilities, prof) {
+// Async weapon computation using 5etools data
+async function computeWeaponAsync(w, abilities, prof) {
+  const name = typeof w === 'string' ? w : w.name
+  const data = await getWeapon(name)
+  if (!data) return { name, attackBonus: fmtMod(prof), damage: '?', type: '?', range: '' }
+  let abilityKey = data.ability
+  if (data.finesse && abilities.dex.modifier > abilities.str.modifier) abilityKey = 'dex'
+  if (data.thrown && !data.ranged && abilities.dex.modifier > abilities.str.modifier) abilityKey = 'dex'
+  const atkMod = abilities[abilityKey].modifier + prof
+  const dmgMod = abilities[abilityKey].modifier
+  return {
+    name: data.name,
+    quantity: w.quantity || 1,
+    attackBonus: fmtMod(atkMod),
+    damage: `${data.die}${dmgMod >= 0 ? '+' : ''}${dmgMod}`,
+    type: data.dmgTypeShort,
+    range: data.range ? `${data.range}` : '5',
+    properties: data.properties,
+    abilityKey,
+  }
+}
+
+// Sync fallback for weapons (used when 5etools data hasn't loaded)
+const WEAPON_FALLBACK = {
+  'Club': { die: '1d4', type: 'B', ability: 'str', finesse: false },
+  'Dagger': { die: '1d4', type: 'P', ability: 'str', finesse: true },
+  'Greataxe': { die: '1d12', type: 'S', ability: 'str', finesse: false },
+  'Greatsword': { die: '2d6', type: 'S', ability: 'str', finesse: false },
+  'Handaxe': { die: '1d6', type: 'S', ability: 'str', finesse: false },
+  'Javelin': { die: '1d6', type: 'P', ability: 'str', finesse: false, range: '30/120' },
+  'Light Crossbow': { die: '1d8', type: 'P', ability: 'dex', finesse: false, range: '80/320' },
+  'Longbow': { die: '1d8', type: 'P', ability: 'dex', finesse: false, range: '150/600' },
+  'Longsword': { die: '1d8', type: 'S', ability: 'str', finesse: false },
+  'Mace': { die: '1d6', type: 'B', ability: 'str', finesse: false },
+  'Quarterstaff': { die: '1d6', type: 'B', ability: 'str', finesse: false },
+  'Rapier': { die: '1d8', type: 'P', ability: 'str', finesse: true },
+  'Scimitar': { die: '1d6', type: 'S', ability: 'str', finesse: true },
+  'Shortbow': { die: '1d6', type: 'P', ability: 'dex', finesse: false, range: '80/320' },
+  'Shortsword': { die: '1d6', type: 'P', ability: 'str', finesse: true },
+  'Spear': { die: '1d6', type: 'P', ability: 'str', finesse: false, range: '20/60' },
+}
+
+function computeWeaponsSync(rawWeapons, abilities, prof) {
   if (!rawWeapons?.length) return []
   return rawWeapons.slice(0, 5).map(w => {
     const name = typeof w === 'string' ? w : w.name
-    const data = WEAPON_DATA[name]
+    const data = WEAPON_FALLBACK[name]
     if (!data) return { name, attackBonus: fmtMod(prof), damage: '?', type: '?', range: '' }
-    // For finesse weapons, use the better of STR/DEX
     let abilityKey = data.ability
     if (data.finesse && abilities.dex.modifier > abilities.str.modifier) abilityKey = 'dex'
     const atkMod = abilities[abilityKey].modifier + prof
     const dmgMod = abilities[abilityKey].modifier
     return {
-      name,
-      quantity: w.quantity || 1,
+      name, quantity: w.quantity || 1,
       attackBonus: fmtMod(atkMod),
       damage: `${data.die}${dmgMod >= 0 ? '+' : ''}${dmgMod}`,
-      type: data.type,
-      range: data.range || '5',
-      abilityKey,
+      type: data.type, range: data.range || '5', abilityKey,
     }
   })
 }
 
+/**
+ * computeCharacter — synchronous core computation.
+ * Weapons use static fallback; call enrichWeapons() after for 5etools data.
+ */
 export function computeCharacter(raw) {
   const c = typeof raw === 'string' ? JSON.parse(raw) : { ...raw }
 
@@ -180,7 +191,7 @@ export function computeCharacter(raw) {
   const initiative = abilities.dex.modifier
   const passivePerception = 10 + (skills['Perception']?.total ?? abilities.wis.modifier)
 
-  // HP
+  // HP — PHB 2024: level 1 = max die + CON mod, subsequent = avg + 1 + CON mod
   const hitDie = HIT_DIE[primaryClass] || 8
   const conMod = abilities.con.modifier
   let hp = c.hp || c.hitPoints
@@ -204,13 +215,10 @@ export function computeCharacter(raw) {
     }
   }
 
-  // Spell slots
   const spellSlots = computeSpellSlots(classes)
+  const weapons = computeWeaponsSync(c.weapons, abilities, prof)
 
-  // Weapons with computed attacks
-  const weapons = computeWeapons(c.weapons, abilities, prof)
-
-  // Carrying capacity
+  // Carrying capacity (PHB 2024: STR × 15)
   const carry = abilities.str.score * 15
   const lift = carry * 2
 
@@ -227,8 +235,7 @@ export function computeCharacter(raw) {
     initiative: { total: initiative, display: fmtMod(initiative) },
     proficiencyBonus: prof, proficiencyBonusDisplay: fmtMod(prof),
     passivePerception, spellcasting, spellSlots,
-    weapons,
-    carry, lift,
+    weapons, carry, lift,
     languages: c.languages || [],
     traits: c.traits || [], features: c.features || [], equipment: c.equipment || [],
     spells: c.spells || [], backstory: c.backstory || '',
@@ -236,4 +243,17 @@ export function computeCharacter(raw) {
     dmNotes: c.dmNotes || '', roleplaying: c.roleplaying || null, crRating: c.crRating || '',
     theme: c.theme || null,
   }
+}
+
+/**
+ * enrichWeapons — async post-processing to replace fallback weapon data with 5etools data.
+ */
+export async function enrichWeapons(charData) {
+  if (!charData.weapons?.length) return charData
+  const abilities = charData.abilities
+  const prof = charData.proficiencyBonus
+  const enriched = await Promise.all(
+    charData.weapons.map(w => computeWeaponAsync(w, abilities, prof))
+  )
+  return { ...charData, weapons: enriched }
 }

@@ -43,24 +43,29 @@ const BASE_SCHEMA = `{
 
 const PC_PROMPT = `You are a D&D 2024 Player's Handbook character generator. Return ONLY valid JSON with this schema:
 ${BASE_SCHEMA}
-IMPORTANT 2024 RULES:
-- "Race" is now called "Species". Use only: Aasimar, Dragonborn, Dwarf, Elf, Gnome, Goliath, Halfling, Human, Orc, Tiefling.
-- Species NO LONGER grant ability score increases. Ability score bonuses come from Background (+2/+1 or +1/+1/+1 to the background's three eligible scores).
-- Each Background grants an Origin Feat, two skill proficiencies, and one tool proficiency.
-- Subclasses are gained at level 3 for ALL classes.
-- Characters know Common plus two languages of their choice.
-- Use the 16 official 2024 backgrounds: Acolyte, Artisan, Charlatan, Criminal, Entertainer, Farmer, Guard, Guide, Hermit, Merchant, Noble, Sage, Sailor, Scribe, Soldier, Wayfarer.
-- Background→Feat mapping: Acolyte→Magic Initiate(Cleric), Artisan→Crafter, Charlatan→Skilled, Criminal→Alert, Entertainer→Musician, Farmer→Tough, Guard→Alert, Guide→Magic Initiate(Druid), Hermit→Healer, Merchant→Lucky, Noble→Skilled, Sage→Magic Initiate(Wizard), Sailor→Tavern Brawler, Scribe→Skilled, Soldier→Savage Attacker, Wayfarer→Lucky.
-Calculate stats correctly. Be creative with backstory.
-If an image is provided, use it as visual reference and incorporate details into backstory/traits.
+STRICT 2024 PHB RULES:
+- "Race" is now "Species": Aasimar, Dragonborn, Dwarf, Elf, Gnome, Goliath, Halfling, Human, Orc, Tiefling.
+- Species grant NO ability score increases. ASI comes from Background: +2/+1 or +1/+1/+1 to the background's three eligible scores.
+- Standard array: 15, 14, 13, 12, 10, 8. Apply background ASI on top.
+- Each Background grants an Origin Feat, two skill proficiencies, one tool proficiency.
+- Subclasses at level 3 for ALL classes.
+- Common + two languages of choice.
+- 16 backgrounds: Acolyte, Artisan, Charlatan, Criminal, Entertainer, Farmer, Guard, Guide, Hermit, Merchant, Noble, Sage, Sailor, Scribe, Soldier, Wayfarer.
+- Background→Feat: Acolyte→Magic Initiate(Cleric), Artisan→Crafter, Charlatan→Skilled, Criminal→Alert, Entertainer→Musician, Farmer→Tough, Guard→Alert, Guide→Magic Initiate(Druid), Hermit→Healer, Merchant→Lucky, Noble→Skilled, Sage→Magic Initiate(Wizard), Sailor→Tavern Brawler, Scribe→Skilled, Soldier→Savage Attacker, Wayfarer→Lucky.
+- Background→Ability Scores: Acolyte→INT/WIS/CHA, Artisan→STR/DEX/CON, Charlatan→DEX/CON/CHA, Criminal→DEX/CON/INT, Entertainer→STR/DEX/CHA, Farmer→STR/CON/WIS, Guard→STR/CON/WIS, Guide→DEX/CON/WIS, Hermit→CON/WIS/CHA, Merchant→CON/INT/CHA, Noble→STR/INT/CHA, Sage→CON/INT/WIS, Sailor→STR/DEX/WIS, Scribe→DEX/INT/WIS, Soldier→STR/DEX/CON, Wayfarer→DEX/WIS/CHA.
+- Class saving throws: Barbarian→STR/CON, Bard→DEX/CHA, Cleric→WIS/CHA, Druid→INT/WIS, Fighter→STR/CON, Monk→STR/DEX, Paladin→WIS/CHA, Ranger→STR/DEX, Rogue→DEX/INT, Sorcerer→CON/CHA, Warlock→WIS/CHA, Wizard→INT/WIS.
+- Warlock uses Pact Magic (short-rest slots), not standard spell slots.
+- HP at level 1 = max hit die + CON mod. Subsequent levels = (die/2 + 1) + CON mod each.
+- Use exact PHB weapon names for the "weapons" array.
+Be creative with backstory. If an image is provided, use it as visual reference.
 The "theme" should reflect class, species, and personality.`
 
 const NPC_PROMPT = `You are a D&D 2024 Player's Handbook NPC generator for Dungeon Masters. Return ONLY valid JSON with this schema:
 ${BASE_SCHEMA.replace('"backstory": "string"', '"backstory": "string",\n  "dmNotes": "string — secret motivations, plot hooks, and tactical notes for the DM",\n  "roleplaying": {"voice": "string", "mannerisms": "string", "ideals": "string", "bonds": "string", "flaws": "string"},\n  "crRating": "string"')}
-IMPORTANT: Use 2024 PHB rules. Species (not race) no longer grant ability score increases — those come from Background.
-Create a memorable, useful NPC. Include DM-facing notes with secret motivations, plot hooks, and how to roleplay them.
-NPCs can be any CR — commoners, merchants, villains, monsters with humanoid stats, etc.
-If an image is provided, use it as visual reference.
+Use 2024 PHB rules. Species grant NO ability score increases — ASI comes from Background (+2/+1 or +1/+1/+1).
+Class saving throws: Barbarian→STR/CON, Bard→DEX/CHA, Cleric→WIS/CHA, Druid→INT/WIS, Fighter→STR/CON, Monk→STR/DEX, Paladin→WIS/CHA, Ranger→STR/DEX, Rogue→DEX/INT, Sorcerer→CON/CHA, Warlock→WIS/CHA, Wizard→INT/WIS.
+Create a memorable NPC with DM-facing notes: secret motivations, plot hooks, roleplay guidance.
+NPCs can be any CR. If an image is provided, use it as visual reference.
 The "theme" should reflect the NPC's role and personality.`
 
 // ── LLM call (serverless proxy in prod, direct in local dev) ──
@@ -125,7 +130,7 @@ async function callLlm(systemPrompt, userPrompt, imageBase64) {
   return JSON.parse(json.candidates[0].content.parts[0].text)
 }
 
-/** Enriquece spells com dados do SRD (validação via dnd5eapi.co). */
+/** Enriquece spells com dados do 5etools (XPHB 2024). */
 async function enrichSpells(character) {
   if (!character.spells?.length) return character
   const validated = await validateSpells(character.spells)

@@ -29,10 +29,10 @@ async function generate() {
   try {
     let parsed
     if (inputMode.value === 'markdown' || isStructuredMarkdown(text)) {
-      parsed = parseCharacter(parseMarkdownCharacter(text))
+      parsed = await parseCharacter(parseMarkdownCharacter(text))
     } else {
       const gen = store.mode === 'npc' ? generateNpcFromPrompt : generateCharacterFromPrompt
-      parsed = parseCharacter(await gen(text, promptImage.value))
+      parsed = await parseCharacter(await gen(text, promptImage.value))
     }
     if (promptImage.value) parsed._portrait = promptImage.value
     store.addCharacter(parsed)
