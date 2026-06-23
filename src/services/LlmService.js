@@ -1,10 +1,31 @@
 /**
- * Serviço de geração via LLM — suporta Gemini e Groq.
+ * Serviço de geração via LLM — Gemini → Groq → OpenRouter (fallback em 429/503/529).
  * Usa regras do Player's Handbook 2024 (D&D 5.5).
- * Provider selecionado via VITE_LLM_PROVIDER (gemini | groq).
+ * Prod: chama /api/generate (keys server-side). Dev: chamadas diretas com VITE_ keys.
+ * Provider primário em dev via VITE_LLM_PROVIDER (gemini | groq). Timeout de 30s + 1 retry.
  */
 
 import { validateSpells } from './Dnd5eApi.js'
+
+const TIMEOUT_MS = 30000
+
+// fetch with AbortController timeout — keeps a hung request from freezing the UI on "Invocando..."
+async function fetchWithTimeout(url, opts, label) {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS)
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal })
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      const err = new Error(`${label} timeout após ${TIMEOUT_MS / 1000}s`)
+      err.status = 503 // retryable → fallback provider
+      throw err
+    }
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
+}
 
 const BASE_SCHEMA = `{
   "name": "string",
@@ -72,11 +93,11 @@ The "theme" should reflect the NPC's role and personality.`
 
 async function callLlm(systemPrompt, userPrompt, imageBase64) {
   if (import.meta.env.PROD || !import.meta.env.VITE_GEMINI_API_KEY) {
-    const res = await fetch('/api/generate', {
+    const res = await fetchWithTimeout('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ systemPrompt, userPrompt, imageBase64 }),
-    })
+    }, 'API')
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       throw new Error(err.error || `API error ${res.status}`)
@@ -84,10 +105,10 @@ async function callLlm(systemPrompt, userPrompt, imageBase64) {
     return res.json()
   }
 
-  // Local dev — direct calls with VITE_ keys
-  const provider = (import.meta.env.VITE_LLM_PROVIDER || 'gemini').toLowerCase()
+  // Local dev — direct calls with VITE_ keys, primary → fallback on 429/503/529
+  const RETRYABLE = new Set([429, 503, 529])
 
-  if (provider === 'groq') {
+  async function callGroq() {
     const apiKey = import.meta.env.VITE_GROQ_API_KEY
     if (!apiKey) throw new Error('VITE_GROQ_API_KEY não configurada no .env')
     const messages = [
@@ -97,37 +118,84 @@ async function callLlm(systemPrompt, userPrompt, imageBase64) {
         : userPrompt },
     ]
     const model = imageBase64 ? 'meta-llama/llama-4-scout-17b-16e-instruct' : 'llama-3.3-70b-versatile'
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const res = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({ model, messages, response_format: { type: 'json_object' }, temperature: 0.8 }),
-    })
-    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error?.message ?? `Groq ${res.status}`) }
+    }, 'Groq')
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}))
+      const err = new Error(e.error?.message ?? `Groq ${res.status}`)
+      err.status = res.status
+      throw err
+    }
     const json = await res.json()
     return JSON.parse(json.choices[0].message.content)
   }
 
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-  const parts = [{ text: userPrompt }]
-  if (imageBase64) {
-    const match = imageBase64.match(/^data:(image\/\w+);base64,(.+)$/)
-    if (match) parts.push({ inlineData: { mimeType: match[1], data: match[2] } })
-  }
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ parts }],
-        generationConfig: { responseMimeType: 'application/json' },
-      }),
+  async function callGemini() {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+    if (!apiKey) throw new Error('VITE_GEMINI_API_KEY não configurada no .env')
+    const parts = [{ text: userPrompt }]
+    if (imageBase64) {
+      const match = imageBase64.match(/^data:(image\/\w+);base64,(.+)$/)
+      if (match) parts.push({ inlineData: { mimeType: match[1], data: match[2] } })
     }
-  )
-  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error?.message ?? `Gemini ${res.status}`) }
-  const json = await res.json()
-  return JSON.parse(json.candidates[0].content.parts[0].text)
+    const res = await fetchWithTimeout(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ parts }],
+          generationConfig: { responseMimeType: 'application/json' },
+        }),
+      },
+      'Gemini'
+    )
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}))
+      const msg = e.error?.message ?? `Gemini ${res.status}`
+      const err = new Error(
+        (res.status === 429 || /overload/i.test(msg))
+          ? 'Gemini sobrecarregado. Tente novamente ou configure VITE_LLM_PROVIDER=groq no .env'
+          : msg
+      )
+      err.status = res.status
+      throw err
+    }
+    const json = await res.json()
+    return JSON.parse(json.candidates[0].content.parts[0].text)
+  }
+
+  const primary = (import.meta.env.VITE_LLM_PROVIDER || 'gemini').toLowerCase()
+  const [callPrimary, callFallback] = primary === 'groq'
+    ? [callGroq, callGemini]
+    : [callGemini, callGroq]
+
+  // one retry on the same provider before falling through — a transient 503 often clears
+  const sleep = ms => new Promise(r => setTimeout(r, ms))
+  async function withRetry(fn) {
+    try {
+      return await fn()
+    } catch (e) {
+      if (!RETRYABLE.has(e.status)) throw e
+      await sleep(800)
+      return fn()
+    }
+  }
+
+  try {
+    return await withRetry(callPrimary)
+  } catch (primaryErr) {
+    if (!RETRYABLE.has(primaryErr.status)) throw primaryErr
+    try {
+      return await callFallback()
+    } catch (fallbackErr) {
+      throw new Error(`${primaryErr.message} | Fallback também falhou: ${fallbackErr.message}`)
+    }
+  }
 }
 
 /** Enriquece spells com dados do 5etools (XPHB 2024). */

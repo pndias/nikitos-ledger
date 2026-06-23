@@ -1,7 +1,8 @@
 {
-  "name": "el-brujos-ledger",
+  "name": "nikitos-ledger",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "Automated D&D 5.5 character & NPC sheet generator powered by AI (Gemini → Groq → OpenRouter fallback chain).",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -8,7 +8,7 @@ A minimalist web tool that lets players and DMs generate complete character shee
 
 ## ✨ Features
 
-- **Prompt-to-Sheet** — Describe a character in plain text, get a full 5.5e sheet instantly via Gemini AI
+- **Prompt-to-Sheet** — Describe a character in plain text, get a full 5.5e sheet instantly via AI (Gemini, with automatic Groq/OpenRouter fallback on rate limits)
 - **NPC Generator** — DMs can generate memorable NPCs with roleplaying notes, secret motivations, and plot hooks
 - **Markdown Import** — Paste structured Markdown from other AI tools to import characters directly
 - **Image Support** — Attach character art in the prompt; it becomes the portrait on the sheet and PDF
@@ -39,7 +39,7 @@ npm install
 
 # Configure
 cp .env.example .env
-# Add your Gemini API key to .env
+# Add at least one API key to .env (see Requirements)
 
 # Run
 npm run dev
@@ -48,8 +48,15 @@ npm run dev
 ### Requirements
 
 - Node.js 18+
-- A [Google Gemini API key](https://aistudio.google.com/apikey) (free tier works)
+- At least one LLM API key (all have free tiers):
+  - [Google Gemini](https://aistudio.google.com/apikey) — primary, best JSON quality
+  - [Groq](https://console.groq.com) — fallback, fast & high rate limit
+  - [OpenRouter](https://openrouter.ai/keys) — optional third fallback (free models)
 - The D&D Beyond 2024 character sheet PDF is included in `public/templates/` (downloaded from [D&D Beyond](https://www.dndbeyond.com))
+
+### Provider fallback
+
+The generator tries providers in order and falls through automatically on rate-limit / overload (HTTP 429/503/529), with one same-provider retry first. Order is `LLM_PROVIDER` (default `gemini`) → remaining configured providers → OpenRouter. Each request has a 30s timeout. Set `LLM_PROVIDER` to pick the primary. In production (Vercel) keys are read server-side via `api/generate.js`; in local dev the app calls providers directly with `VITE_`-prefixed keys.
 
 ## 🏗️ Architecture
 
@@ -63,7 +70,7 @@ src/
 ├── composables/
 │   └── usePdf.js               # pdf-lib: coordinate-based drawing on D&D Beyond 2024 template
 ├── services/
-│   ├── LlmService.js           # Gemini Flash 2.5 API (PC + NPC prompts)
+│   ├── LlmService.js           # LLM client: Gemini→Groq→OpenRouter fallback (PC + NPC prompts)
 │   ├── DndEngine.js            # D&D 5.5 rules engine (derived stats, spell slots, weapons)
 │   ├── CharacterParser.js      # Normalize LLM JSON → internal format
 │   ├── MarkdownParser.js       # Parse structured MD → character data
@@ -84,7 +91,7 @@ The PDF export uses the official **D&D Beyond 2024** character sheet — a flat 
 |-------|------|
 | Frontend | Vue 3 (Vite), Pinia |
 | Styling | Tailwind CSS 4 |
-| AI | Google Gemini Flash 2.5 |
+| AI | Gemini 2.5 Flash → Groq (Llama 3.3) → OpenRouter (Qwen3) fallback |
 | PDF | pdf-lib |
 | Fonts | Cinzel, Crimson Text |
 
