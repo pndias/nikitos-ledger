@@ -1,5 +1,6 @@
-const RETRYABLE = new Set([429, 503, 529])
-const TIMEOUT_MS = 30000
+const SAME_RETRY = new Set([429, 503, 529])        // fast rate-limit errors → retry same provider once
+const FALLTHROUGH = new Set([429, 503, 529, 504])  // these advance to the next provider
+const TIMEOUT_MS = 20000
 const RETRY_DELAY_MS = 800
 const OPENROUTER_MODEL = 'qwen/qwen3-next-80b-a3b-instruct:free'
 
@@ -14,7 +15,7 @@ async function fetchWithTimeout(url, opts, label) {
   } catch (e) {
     if (e.name === 'AbortError') {
       const err = new Error(`${label} timeout após ${TIMEOUT_MS / 1000}s`)
-      err.status = 503 // treat timeout as retryable → next provider
+      err.status = 504 // timeout → skip straight to next provider, NO same-provider retry
       throw err
     }
     throw e
@@ -97,12 +98,13 @@ async function tryOpenRouter(key, systemPrompt, userPrompt) {
   try { return typeof raw === 'object' ? raw : JSON.parse(raw) } catch { return raw }
 }
 
-// one retry on the same provider before falling through — a transient 503 often clears
+// one retry on the same provider before falling through — a transient rate-limit often clears.
+// timeouts (504) are NOT retried here: re-waiting the full timeout is wasteful, fall through instead.
 async function callWithRetry(fn) {
   try {
     return await fn()
   } catch (e) {
-    if (!RETRYABLE.has(e.status)) throw e
+    if (!SAME_RETRY.has(e.status)) throw e
     await sleep(RETRY_DELAY_MS)
     return fn()
   }
@@ -143,7 +145,7 @@ export default async function handler(req, res) {
       return res.status(200).json(result)
     } catch (e) {
       lastError = e
-      if (!RETRYABLE.has(e.status)) break // non-retryable (400/401/etc) → fail fast, no fallback
+      if (!FALLTHROUGH.has(e.status)) break // non-retryable (400/401/etc) → fail fast, no fallback
     }
   }
 

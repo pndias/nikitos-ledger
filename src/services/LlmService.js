@@ -7,18 +7,19 @@
 
 import { validateSpells } from './Dnd5eApi.js'
 
-const TIMEOUT_MS = 30000
+const TIMEOUT_MS = 20000        // per-provider, direct dev calls
+const PROXY_TIMEOUT_MS = 75000  // /api/generate orchestrates the whole fallback chain — wait it out
 
 // fetch with AbortController timeout — keeps a hung request from freezing the UI on "Invocando..."
-async function fetchWithTimeout(url, opts, label) {
+async function fetchWithTimeout(url, opts, label, timeoutMs = TIMEOUT_MS) {
   const ctrl = new AbortController()
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS)
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
   try {
     return await fetch(url, { ...opts, signal: ctrl.signal })
   } catch (e) {
     if (e.name === 'AbortError') {
-      const err = new Error(`${label} timeout após ${TIMEOUT_MS / 1000}s`)
-      err.status = 503 // retryable → fallback provider
+      const err = new Error(`${label} timeout após ${timeoutMs / 1000}s`)
+      err.status = 504 // timeout → skip to next provider, no same-provider retry
       throw err
     }
     throw e
@@ -97,7 +98,7 @@ async function callLlm(systemPrompt, userPrompt, imageBase64) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ systemPrompt, userPrompt, imageBase64 }),
-    }, 'API')
+    }, 'API', PROXY_TIMEOUT_MS)
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       throw new Error(err.error || `API error ${res.status}`)
@@ -105,8 +106,9 @@ async function callLlm(systemPrompt, userPrompt, imageBase64) {
     return res.json()
   }
 
-  // Local dev — direct calls with VITE_ keys, primary → fallback on 429/503/529
-  const RETRYABLE = new Set([429, 503, 529])
+  // Local dev — direct calls with VITE_ keys, primary → fallback
+  const SAME_RETRY = new Set([429, 503, 529])        // fast rate-limit → retry same provider once
+  const FALLTHROUGH = new Set([429, 503, 529, 504])  // advance to fallback provider (504 = timeout)
 
   async function callGroq() {
     const apiKey = import.meta.env.VITE_GROQ_API_KEY
@@ -174,13 +176,14 @@ async function callLlm(systemPrompt, userPrompt, imageBase64) {
     ? [callGroq, callGemini]
     : [callGemini, callGroq]
 
-  // one retry on the same provider before falling through — a transient 503 often clears
+  // one retry on the same provider before falling through — a transient rate-limit often clears.
+  // timeouts (504) are NOT retried: fall straight through to the fallback provider.
   const sleep = ms => new Promise(r => setTimeout(r, ms))
   async function withRetry(fn) {
     try {
       return await fn()
     } catch (e) {
-      if (!RETRYABLE.has(e.status)) throw e
+      if (!SAME_RETRY.has(e.status)) throw e
       await sleep(800)
       return fn()
     }
@@ -189,7 +192,7 @@ async function callLlm(systemPrompt, userPrompt, imageBase64) {
   try {
     return await withRetry(callPrimary)
   } catch (primaryErr) {
-    if (!RETRYABLE.has(primaryErr.status)) throw primaryErr
+    if (!FALLTHROUGH.has(primaryErr.status)) throw primaryErr
     try {
       return await callFallback()
     } catch (fallbackErr) {
